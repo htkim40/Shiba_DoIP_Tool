@@ -1,5 +1,8 @@
 import socket 
 import sys
+import binascii
+
+##DoIP Header Structure : <protocol version><inverse protocol version><payload type><payloadlength><payload>
 
 PROTOCOL_VERSION = 							'02'
 INVERSE_PROTOCOL_VERSION = 					'FD'
@@ -10,8 +13,20 @@ DOIP_VEHICLE_ID_REQUEST = 					'0001'
 DOIP_VEHICLE_ID_REQUEST_W_EID = 			'0002'
 DOIP_VEHICLE_ID_REQUEST_W_VIN = 			'0003'
 DOIP_VEHICLE_ANNOUNCEMENT_ID_RESPONSE = 	'0004'
+##DOIP_ROUTING_ACTIVATION_REQUEST : <0005><sourceaddress><activation type><00000000>
 DOIP_ROUTING_ACTIVATION_REQUEST = 			'0005'
-DOIP_ROUTING_ACTIVAQTION_RESPONSE = 		'0006'
+##Activation Type
+DEFAULT_ACTIVATION = 						'00'
+WWH_OBD_ACTIVATION = 						'01'
+##0x02-0xDF ISOSAE Reserved
+CENTRAL_SECURITY_ACTIVATION = 				'E0'
+##0xE1-0xFF OEM Specific 
+ACTIVATION_SPACE_RESERVED_BY_ISO = 	ASRBISO = '00000000'
+#the code above is mandatory but has no use at the moment. ISOSAE Reserved	
+ACTIVATION_SPACE_RESERVED_BY_OEM = 	ASRBOEM = 'ffffffff'		
+
+
+DOIP_ROUTING_ACTIVATION_RESPONSE = 			'0006'
 DOIP_ALIVE_CHECK_REQUEST = 					'0007'
 DOIP_ALIVE_CHECK_RESPONSE = 				'0008'
 #0x009-0x4000: Reserved by ISO13400
@@ -89,10 +104,18 @@ class DoIP_Client:
 		else:
 			print "Error::DoIP client is not connected to a server"
 	
-	def RequestRoutingActivation(self,targetECUaddr = '2004'):
+	def RequestRoutingActivation(self,targetECUaddr = '2004', activationType = DEFAULT_ACTIVATION):
 		if self.isTCPConnected:
 			try: 
 				print "Requesting routing activation"
+				DoIPHeader = PROTOCOL_VERSION + INVERSE_PROTOCOL_VERSION + DOIP_ROUTING_ACTIVATION_REQUEST
+				payload = self.localECUAddr + activationType + ASRBISO + ASRBOEM
+				payloadLength = "%.8X" % (len(payload)/2) ##divide by 2 because 2 nibbles per byte
+				activationString = DoIPHeader + payloadLength + payload			
+				print "TCP SEND :: %s" %(activationString)
+				self.TCP_Socket.send(activationString.decode("hex"))
+				activationResponse = (binascii.hexlify(self.TCP_Socket.recv(2048))).upper()
+				print "TCP RECV :: %s" %activationResponse
 				############self.TCP_Socket.send()#############
 				############self.TCP_Socket.receive()##########
 				self.isRoutingActivated = 1;
@@ -112,7 +135,10 @@ class DoIP_Client:
 	def __exit__(self, exc_type, exc_value, traceback):
 		print "Closing DoIP Client"
 		self.TCP_Socket.close()
-        
+     
+class DoIPMsg: 
+	def __init__(self,message = None):
+		print message
         
 if __name__ == '__main__':
 	iHub = DoIP_Client()
