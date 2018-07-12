@@ -54,8 +54,11 @@ SECURITY_ACCESS_SERVICE = SA = '27'
 SECURITY_ACCESS_RESPONSE = SAPR = '67'
 
 
-#COMMUNICATION_CONTROL_SERVICE (CC) <0x28><sub-function = [control type]><communication type>
+################################################################################
+###COMMUNICATION_CONTROL_SERVICE (CC) <0x28><sub-function = [control type]><communication type>
+################################################################################
 COMMUNICATION_CONTROL_SERVICE = CC = '28'
+################################################################################
 ##CC Sub-functions
 ENABLE_RX_TX = ERXTX = '00'
 ENABLE_RX_DISABLE_TX = ERXDTX = '01'
@@ -67,25 +70,33 @@ ENABLE_RX_TX_WITH_ENHANCED_ADDR_INFO = ERXTXWEAI = '05'
 ##CC sub-function 0x40-0x5F : Vehicle Manufacturer Specific
 ##CC sub-function 0x60-0x7E : System Supplier Specific 
 ##CC sub-function 0x7F : ISOSAE Reserved 
-
+################################################################################
 ###CC communication type bit 0-3 (lower nibble)
 ###CC communication type bit 0-1 encoding 0x0: ISOSAE Reserved 
 NORMAL_COMMUNICATION_MESSAGES = NCM = '01'
 NETWORK_MANAGEMENT_COMMUNICATION_MESSAGES = NWMCM = '02'
 NETWORK_MANAGEMENT_COMMUNICATION_MESSAGES_NORMAL_COMMUNICATION_MESSAGES = NWMCM_NCM = '03'
+################################################################################
 ###CC communication type bit 2-3 : ISOSAE Reserved -- Keep it 0x0 -- See above that it is kept 0x0
-
+################################################################################
 ###CC subnet number bit 4-7 (upper nibble) -- Sets the setting for the optional subnet number. 
 DISABLE_OR_ENABLE_SPECIFIED_COMMUNICATION_TYPE = DISENSCT = '0'
 DISABLE_OR_ENABLE_SPECIFIC_SUBNET_ID_BY_SUBNET_NUMBER = DISENSSIVSN = '1' 
 #User should reset as needed. The above is defaulted to 1
 DISABLE_OR_ENABLE_NETWORK_WHICH_REQUEST_IS_RECEIVED_ON_NODE = 'F'
+#CC PRM <0x68><sub-function >
+COMMUNICATION_CONTROL_RESPONSE = CCPR = '68'
 
-#CC PRM
+
+#TESTER PRESENT <0x3E><Sub-function>#
+TESTER_PRESENT = TP = '3E'
+#Subfunctions 
+ZERO_SUB_FUNCTION = ZSUBF = '00'
+#0x01-0x7F ISOSAE Reserved 
+#PRM <7E><Sub-fucntion>
+TESTER_PRESENT_RESPONSE = TPPR ='7E'
 
 
-#TESTER PRESENT#
-TESTER_PRESENT = '3E00'
 
 #REQUEST_DOWNLOAD
 #REQUEST_TRANSFER_DATA

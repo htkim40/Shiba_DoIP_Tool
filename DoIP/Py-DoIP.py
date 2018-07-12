@@ -31,7 +31,7 @@ def DoIP_Pack():
     print "DoIP Pack"
 
 class DoIP_Client:
-	def __init__(self,address = '172.26.200.15',port = 13300, ECUAddr = '1111'):
+	def __init__(self,address = '172.26.200.15',port = 0, ECUAddr = '1111'):
 		#init tcp socket
 		self.localIPAddr = address 
 		self.localPort = port
@@ -46,7 +46,7 @@ class DoIP_Client:
 			self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self.TCP_Socket.bind((self.localIPAddr,self.localPort))
-			print "Socket successfully created: Binded to %s:%d" %(address, port)
+			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 		except socket.error as err:
 			print "Socket creation failed with error %s" %(err)
 			
@@ -58,11 +58,12 @@ class DoIP_Client:
 			print "Error :: Already connected to a server. Close the connection before starting a new one"
 		else:
 			try:
-				print "Connecting to DoIP Server at %s:%d" %(address,port)
+				print "Connecting to DoIP Server at %s:%d ... " %(address,port)
 				self.targetIPAddr = address
 				self.targetPort = port
 				self.TCP_Socket.connect((address, port)) 
 				self.isTCPConnected = 1	
+				print "Connection to DoIP established"
 			except socket.error as err: 
 				print "Unable to connect to socket at %s:%d. Socket failed with error %s" % (address, port, err)
 				self.targetIPAddr = None
@@ -104,7 +105,7 @@ class DoIP_Client:
 			print "Unable to request routing activation. Currently not connected to a DoIP server"	 
     
 	def	Terminate(self):
-		print "Closing DoIP Client"
+		print "Closing DoIP Client ..."
 		self.TCP_Socket.close()
 		print "Good bye"
 	
@@ -116,7 +117,5 @@ class DoIP_Client:
 if __name__ == '__main__':
 	iHub = DoIP_Client()
 	iHub.ConnectToDoIPServer()
-	iHub.DisconnectFromDoIPServer()
-	iHub.ConnectToDoIPServer()
-	iHub.DisconnectFromDoIPServer()
+	#iHub.DisconnectFromDoIPServer()
 	iHub.Terminate()
