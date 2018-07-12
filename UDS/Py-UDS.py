@@ -1,62 +1,104 @@
 ###UDS DEFINITIONS###
 
+################################################################################
+##### DIAGNOSTIC_SESSION_CONTROL_REQUEST(DSC)###################################
+################################################################################
+DIAGNOSTIC_SESSION_CONTROL_REQUEST = DSC = '10'
+################################################################################
+# DSC sub-function 0x00 : ISOSAE Reserved ######################################
+# <0x10><sub-function> #########################################################
+DEFAULT_SESSION = DS = '01'
+PROGRAMMING_SESSION = PRGS = '02'
+EXTENDED_DIAGNOSTIC_SESSION = EXTDS = '03'
+SAFETY_SYSTEM_DIAGNOSTIC_SESSION = SSDS = '04'
+#DSC sub-function 0x05-0x3F : ISOSAE Reserved
+#DSC sub-function 0x40-0x5F : vehicle manufacturer specifc
+#DSC sub-function 0x60-0x7E : system supplier specifc
+#DSC sub-function 0x7F : ISOSAE Reserved
+################################################################################
+# DSC Positive Response Message/Code (PRM/PRC) #################################
+# <0x50><sub-function><not supported at Faraday> ###############################
+DIAGNOSTIC_SESSION_CONTROL_RESPONSE = DSCPR = '50'
 
-#TESTER PRESENT#
-TESTER_PRESENT = '3E00'
 
-#SWITCH DIAGNOSTIC SESSIONS#
-SWITCH_DIAGNOSTIC_SESSION = '10'
-SWITCH_DIAGNOSTIC_SESSION_DEFAULT = '1001'
-SWITCH_DIAGNOSTIC_SESSION_PROGRAMMING = '1002'
-SWITCH_DIAGNOSTIC_SESSION_EXTENDED = '1003'
-
-#ECURESET#
-ECU_RESET = '11'
-#ECU_RESET sub-function 0x00 : ISOSAE Reserved
-ECU_RESET_HARD_RESET = '1101'
-ECU_RESET_KEY_OFF_ON_RESET = '1102'
-ECU_RESET_SOFT_RESET = '1103'
-ECU_RESET_ENABLE_RAPID_POWER_SHUTDOWN = '1104'
-ECU_RESET_DISABLE_RAPID_POWER_SHUTDOWN = '1105'
+################################################################################
+##### ECURESET(ER) #############################################################
+################################################################################
+ECU_RESET = ER = '11'
+################################################################################
+# ECU_RESET sub-function 0x00 : ISOSAE Reserved ################################
+HARD_RESET = HR = '01'
+KEY_OFF_ON_RESET = KOFFONR = '02'
+SOFT_RESET = SR = '03'
+ENABLE_RAPID_POWER_SHUTDOWN = ERPSD = '04'
+DISABLE_RAPID_POWER_SHUTDOWN = DRPSD = '05'
 #ECU_RESET sub-function 0x06-0x3F : ISOSAE Reserved
 #ECU_RESET sub-function 0x40-0x5F : ISOSAE Reserved
 #ECU_RESET sub-function 0x60-0x7E : System Supplier Specific
 #ECU_RESET sub-function 0x7F : ISOSAE Reserved
+################################################################################
+# ER Positive Response Message/Code (PRM/PRC) ##################################
+# <0x51><sub-function><power down time -- present on ERPSD> ####################
+ECU_RESET_RESPONSE = ERPR = '51'
 
 
-#SECURITY ACCESS SERVICE <0x27>,<data record (odd for requestSeed, even for sendKey)>,<optional: security key>
-##SECURITY ACCESS SERVICE: REQUEST_SEED : <0x01|0x03|0x05|0x07-0x7D>
-##SECURITY ACCESS SERVICE: SEND_KEY: <0x02|0x04|0x06|0x08-0x7F>
-SECURITY_ACCESS_SERVICE = '27'
+################################################################################
+##### SECURITY ACCESS SERVICE(SA) ##################################################
+################################################################################
+SECURITY_ACCESS_SERVICE = SA = '27'
+# <0x27>,<data record (odd for requestSeed, even for sendKey)>,<optional: security key>
+# SECURITY ACCESS SERVICE: REQUEST_SEED : <0x01|0x03|0x05|0x07-0x7D>
+# SECURITY ACCESS SERVICE: SEND_KEY: <0x02|0x04|0x06|0x08-0x7F>
+################################################################################
+# SA Positive Response Message/Code (PRM/PRC) ##################################
+SECURITY_ACCESS_RESPONSE = SAPR = '67'
 
 
-#COMMUNICATION_CONTROL_SERVICE (CCS) <0x28><sub-function = [control type]><communication type>
-COMMUNICATION_CONTROL_SERVICE = '28'
+#COMMUNICATION_CONTROL_SERVICE (CC) <0x28><sub-function = [control type]><communication type>
+COMMUNICATION_CONTROL_SERVICE = CC = '28'
+##CC Sub-functions
+ENABLE_RX_TX = ERXTX = '00'
+ENABLE_RX_DISABLE_TX = ERXDTX = '01'
+DISABLE_RX_ENABLE_TX = DRXETX = '02'
+DISABLE_RX_TX = DRXTX = '03'
+ENABLE_RX_DISABLE_TX_WITH_ENHANCED_ADDR_INFO = ERXDTXWEAI = '04'
+ENABLE_RX_TX_WITH_ENHANCED_ADDR_INFO = ERXTXWEAI = '05'
+##CC sub-function 0x06-0x3F : ISOSAE Reserved
+##CC sub-function 0x40-0x5F : Vehicle Manufacturer Specific
+##CC sub-function 0x60-0x7E : System Supplier Specific 
+##CC sub-function 0x7F : ISOSAE Reserved 
 
-##CCS Sub-functions
-ENABLE_RX_TX = '00'
-ENABLE_RX_DISABLE_TX = '01'
-DISABLE_RX_ENABLE_TX = '02'
-DISABLE_RX_TX = '03'
-ENABLE_RX_DISABLE_TX_WITH_ENHANCED_ADDR_INFO = '04'
-ENABLE_RX_TX_WITH_ENHANCED_ADDR_INFO = '05'
-##CCS sub-function 0x06-0x3F : ISOSAE Reserved
-##CCS sub-function 0x40-0x5F : Vehicle Manufacturer Specific
-##CCS sub-function 0x60-0x7E : System Supplier Specific 
-##CCS sub-function 0x7F : ISOSAE Reserved 
-
-###CCS communication type bit 0-3 (lower nibble)
-###CCS communication type bit 0-1 encoding 0x0: ISOSAE Reserved 
+###CC communication type bit 0-3 (lower nibble)
+###CC communication type bit 0-1 encoding 0x0: ISOSAE Reserved 
 NORMAL_COMMUNICATION_MESSAGES = NCM = '01'
 NETWORK_MANAGEMENT_COMMUNICATION_MESSAGES = NWMCM = '02'
 NETWORK_MANAGEMENT_COMMUNICATION_MESSAGES_NORMAL_COMMUNICATION_MESSAGES = NWMCM_NCM = '03'
-###CCS communication type bit 2-3 : ISOSAE Reserved -- Keep it 0x0 -- See above that it is kept 0x0
+###CC communication type bit 2-3 : ISOSAE Reserved -- Keep it 0x0 -- See above that it is kept 0x0
 
-###CCS subnet number bit 4-7 (upper nibble) -- Sets the setting for the optional subnet number. 
+###CC subnet number bit 4-7 (upper nibble) -- Sets the setting for the optional subnet number. 
 DISABLE_OR_ENABLE_SPECIFIED_COMMUNICATION_TYPE = DISENSCT = '0'
-DISABLE_OR_ENABLE_SPECIFIC_SUBNET_ID_BY_SUBNET_NUMBER = DISENSSIVSN = '1' #User should reset as needed. Default to 1
+DISABLE_OR_ENABLE_SPECIFIC_SUBNET_ID_BY_SUBNET_NUMBER = DISENSSIVSN = '1' 
+#User should reset as needed. The above is defaulted to 1
 DISABLE_OR_ENABLE_NETWORK_WHICH_REQUEST_IS_RECEIVED_ON_NODE = 'F'
 
+#CC PRM
+
+
+#TESTER PRESENT#
+TESTER_PRESENT = '3E00'
 
 #REQUEST_DOWNLOAD
 #REQUEST_TRANSFER_DATA
+
+
+
+#NEGATIVE RESPONSE MESSAGE/CODE (NRM/NRC)
+SUB_FUNCTION_NOT_SUPPORT = SFNS = '12'
+INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT = IMLOIF = '13'
+CONDITIONS_NOT_CORRECT = CNC = '22'
+REQUEST_SEQUENCE_ERROR = RSE = '24'
+REQUEST_OUT_OF_RANGE = ROOR = '13'
+SECURITY_ACCESS_DENIED = SAD = '33'
+INVALID_KEY = IK = '35'
+EXCEEDED_NUMBER_OF_ATTEMPS = ENOA = '36'
+REQUIRED_TIME_DELAY_NOT_EXPIRED = RTDNE = '37'
