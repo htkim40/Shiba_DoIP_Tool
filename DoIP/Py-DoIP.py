@@ -128,6 +128,9 @@ class DoIP_Client:
 				self.targetECUAddr = None
 		else:
 			print "Unable to request routing activation. Currently not connected to a DoIP server"	 
+			
+	def DoIPSend(self,message):
+		print "Sending DoiP Message"
     
 	def	Terminate(self):
 		print "Closing DoIP Client ..."
@@ -143,7 +146,7 @@ class DoIPMsg:
 			self.protcolVersion = self.inverseProtocolVersion = None
 			self.payloadType = self.payloadLength = None
 			self.sourceAddress = self.targetAddress = None
-			self.UDSMsg = None
+			self.isUDS = False
 		else:		
 			print "Decoding message"
 			self.protcolVersion =  message[0:2]
@@ -156,8 +159,10 @@ class DoIPMsg:
 			else:
 				self.targetAddress = message[20:24]
 			self.payload = message[24:len(message)-len(ASRBISO)]
-			self.isUDS = False
-			self.UDSMsg = None
+			if self.DecodePayloadType(self.payloadType) == "Diagnostic message":
+				self.isUDS = True
+			else:
+				self.isUDS = False
 			self.PrintMessage()
 			
 	def PrintMessage(self):
