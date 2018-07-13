@@ -86,6 +86,8 @@ class DoIP_Client:
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 		except socket.error as err:
 			print "Socket creation failed with error %s" %(err)
+			self.TCP_Socket = None
+			return err
 			
 	def __enter__(self):
 		return self
@@ -94,6 +96,16 @@ class DoIP_Client:
 		if self.isTCPConnected:
 			print "Error :: Already connected to a server. Close the connection before starting a new one"
 		else:
+			if not self.TCP_Socket:
+				print "Warning :: Socket was recently closed but no new socket was created.\n Creating new socket with last available IP address and Port"
+				try:
+					self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+					self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+					self.TCP_Socket.bind((self.localIPAddr,self.localPort))
+					print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
+				except socket.error as err:
+					print "Socket creation failed with error %s" %(err)
+					return err
 			try:
 				print "Connecting to DoIP Server at %s:%d ... " %(address,port)
 				self.targetIPAddr = address
@@ -117,6 +129,8 @@ class DoIP_Client:
 			try: 
 				print "Disconnecting from DoIP server"
 				self.TCP_Socket.shutdown(socket.SHUT_RDWR)
+				self.TCP_Socket.close()
+				self.TCP_Socket = None
 				self.isTCPConnected = 0
 			except socket.error as err:
 				print "Unable to disconnect from socket at %s:%d. Socket failed with error %s." %(self.targetIPAddr, self.targetPort, err)
@@ -146,7 +160,7 @@ class DoIP_Client:
 				if DoIPResponse.payload == '10':
 					self.isRoutingActivated = True;
 					self.targetECUAddr = DoIPResponse.targetAddress
-					print "Routing activated with ECU:%s" %(self.targetECUAddr)
+					print "Routing activated with ECU:%s\n" %(self.targetECUAddr)
 				else:
 					self.isRoutingActivated = False;
 					print "Unable to activate routing"
@@ -169,7 +183,8 @@ class DoIP_Client:
 				payloadLength = "%.8X" % (len(payload)/2)
 				UDSString = DoIPHeader + payloadLength + payload
 				print "Sending DoiP Message"
-				print "TCP SEND :: %s" % (UDSString)
+				print "TCP SEND ::"
+				DoIPTransmit = DoIPMsg(UDSString)
 				self.TCP_Socket.send(UDSString.decode("hex"))
 				return 0
 			except socket.error as err:
@@ -217,10 +232,12 @@ class DoIPMsg:
 				self.targetAddress = None
 			else:
 				self.targetAddress = message[20:24]
-			self.payload = message[24:len(message)-len(ASRBISO)]
+			
 			if self.DecodePayloadType(self.payloadType) == "Diagnostic message":
 				self.isUDS = True
+				self.payload = message[24:len(message)]
 			else:
+				self.payload = message[24:len(message)-len(ASRBISO)]
 				self.isUDS = False
 			self.PrintMessage()
 			
@@ -244,5 +261,14 @@ if __name__ == '__main__':
 	iHub.ConnectToDoIPServer()
 	iHub.DoIPUDSSend(PyUDS.DSC +'02') # change diagnostic sessions
 	iHub.DoIPUDSRecv()
+	iHub.DisconnectFromDoIPServer()
+	time.sleep(1)
+	iHub.ConnectToDoIPServer()
+	iHub.DoIPUDSSend('2EF194')
+	iHub.DoIPUDSRecv()
+	iHub.DisconnectFromDoIPServer()
+	print "Waiting for iHub to wake up"
 	
-	iHub.Terminate()
+
+	
+	#iHub.Terminate()
