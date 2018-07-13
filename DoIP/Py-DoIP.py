@@ -3,18 +3,19 @@ import sys
 import binascii
 
 ##DoIP Header Structure : <protocol version><inverse protocol version><payload type><payloadlength><payload>
+##Payload format : <local ecu address> <optional: target ecu addres> <optional message ><ASRBISO><ASRBOEM>
 
 PROTOCOL_VERSION = 							'02'
 INVERSE_PROTOCOL_VERSION = 					'FD'
 
 ##Payload type definitions##
-DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE = 		'0000'
+DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE = DOIP_NARP = '0000'
 DOIP_VEHICLE_ID_REQUEST = 					'0001'
 DOIP_VEHICLE_ID_REQUEST_W_EID = 			'0002'
 DOIP_VEHICLE_ID_REQUEST_W_VIN = 			'0003'
 DOIP_VEHICLE_ANNOUNCEMENT_ID_RESPONSE = 	'0004'
 ##DOIP_ROUTING_ACTIVATION_REQUEST : <0005><sourceaddress><activation type><00000000>
-DOIP_ROUTING_ACTIVATION_REQUEST = 			'0005'
+DOIP_ROUTING_ACTIVATION_REQUEST = DOIP_RAR = '0005'
 ##Activation Type
 DEFAULT_ACTIVATION = 						'00'
 WWH_OBD_ACTIVATION = 						'01'
@@ -77,16 +78,18 @@ class DoIP_Client:
 				self.targetIPAddr = address
 				self.targetPort = port
 				self.TCP_Socket.connect((address, port)) 
-				self.isTCPConnected = 1	
+				self.isTCPConnected = True	
 				print "Connection to DoIP established"
 			except socket.error as err: 
 				print "Unable to connect to socket at %s:%d. Socket failed with error %s" % (address, port, err)
 				self.targetIPAddr = None
 				self.targetPort = None
-				self.isTCPConnected = 0
+				self.isTCPConnected = False
 			
-		if routingActivation == True: 
+		if routingActivation and self.isTCPConnected: 
 			self.RequestRoutingActivation()
+		elif routingActivation and not self.isTCPConnected:
+			print "Error :: DoIP client is not connected to a server"
 			
 	def DisconnectFromDoIPServer(self):
 		if self.isTCPConnected:
@@ -102,22 +105,21 @@ class DoIP_Client:
 				self.targetPort = None
 				self.isTCPConnected = 0
 		else:
-			print "Error::DoIP client is not connected to a server"
+			print "Error :: DoIP client is not connected to a server"
 	
 	def RequestRoutingActivation(self,targetECUaddr = '2004', activationType = DEFAULT_ACTIVATION):
 		if self.isTCPConnected:
 			try: 
-				print "Requesting routing activation"
 				DoIPHeader = PROTOCOL_VERSION + INVERSE_PROTOCOL_VERSION + DOIP_ROUTING_ACTIVATION_REQUEST
-				payload = self.localECUAddr + activationType + ASRBISO + ASRBOEM
+				payload = self.localECUAddr + activationType + ASRBISO
 				payloadLength = "%.8X" % (len(payload)/2) ##divide by 2 because 2 nibbles per byte
-				activationString = DoIPHeader + payloadLength + payload			
+				activationString = DoIPHeader + payloadLength + payload		
+				print "Requesting routing activation"
 				print "TCP SEND :: %s" %(activationString)
 				self.TCP_Socket.send(activationString.decode("hex"))
 				activationResponse = (binascii.hexlify(self.TCP_Socket.recv(2048))).upper()
 				print "TCP RECV :: %s" %activationResponse
-				############self.TCP_Socket.send()#############
-				############self.TCP_Socket.receive()##########
+				DoIPMessage = DoIPMsg(activationResponse)
 				self.isRoutingActivated = 1;
 				self.targetECUAddr = targetECUaddr
 			except socket.error as err:
@@ -133,12 +135,62 @@ class DoIP_Client:
 		print "Good bye"
 	
 	def __exit__(self, exc_type, exc_value, traceback):
-		print "Closing DoIP Client"
-		self.TCP_Socket.close()
+		self.Terminate
      
 class DoIPMsg: 
 	def __init__(self,message = None):
-		print message
+		if not message:
+			self.protcolVersion = self.inverseProtocolVersion = None
+			self.payloadType = self.payloadLength = None
+			self.sourceAddress = self.targetAddress = None
+			self.UDSMsg = None
+		else:		
+			print "Decoding message"
+			self.protcolVersion =  message[0:2]
+			self.inverseProtocolVersion = message[2:4]
+			self.payloadType = message[4:8]
+			self.payloadLength = message[8:16]
+			self.sourceAddress = message[16:20]
+			if self.DecodePayloadType(self.payloadType) == "Routing activation request":
+				self.targetAddress = None
+			else:
+				self.targetAddress = message[20:24]
+			self.payload = message[24:len(message)-len(ASRBISO)]
+			self.isUDS = False
+			self.UDSMsg = None
+			self.PrintMessage()
+			
+	def PrintMessage(self):
+		print "Protocol Version 		: " + str(self.protcolVersion)
+		print "Inv. Protocol Version 		: " + str(self.inverseProtocolVersion)
+		print "Payload Type 			: " + str(self.payloadType)
+		print "Payload Type Description 	: " + str(self.DecodePayloadType(self.payloadType))
+		print "Payload Length 			: " + str(self.payloadLength)
+		print "Source Address 			: " + str(self.sourceAddress)
+		print "Target Address 			: " + str(self.targetAddress)
+		print "Payload 			: " + str(self.payload)
+		
+	def DecodePayloadType(self,payloadType):
+		payloadTypeDescription = {
+				int(DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE):		 	"Generic negative response",
+				int(DOIP_VEHICLE_ID_REQUEST):					"Vehicle ID request",
+				int(DOIP_VEHICLE_ID_REQUEST_W_EID):				"Vehicle ID request with EID",	
+				int(DOIP_VEHICLE_ID_REQUEST_W_VIN):				"Vehicle ID request with VIN",
+				int(DOIP_VEHICLE_ANNOUNCEMENT_ID_RESPONSE):		"Vehicle announcement ID response",
+				int(DOIP_ROUTING_ACTIVATION_REQUEST):			"Routing activation request",
+				int(DOIP_ROUTING_ACTIVATION_RESPONSE):			"Routing activation response",
+				int(DOIP_ALIVE_CHECK_REQUEST):					"Alive check request",
+				int(DOIP_ALIVE_CHECK_RESPONSE):					"Alive check response",
+				int(DOIP_ENTITY_STATUS_REQUEST):				"Entity status request",
+				int(DOIP_ENTITY_STATUS_RESPONSE):				"Entity status response",
+				int(DOIP_DIAGNOSTIC_POWER_MODE_INFO_REQUEST):	"Diagnostic power mode info request",
+				int(DOIP_DIAGNOSTIC_POWER_MODE_INFO_RESPONSE): 	"Power mode info response",
+				int(DOIP_DIAGNOSTIC_MESSAGE):					"Diagnostic message",
+				int(DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE):		"Diagnostic positive acknowledge",
+				int(DOIP_DIAGNOSTIC_NEGATIVE_ACKNOWLEDGE):		"Diagnostic negative acknowledge",		
+			}
+		return payloadTypeDescription.get(int(payloadType), "Invalid or unregistered diagnostic payload type")
+			
         
 if __name__ == '__main__':
 	iHub = DoIP_Client()
