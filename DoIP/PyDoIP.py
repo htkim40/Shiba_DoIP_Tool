@@ -171,17 +171,24 @@ class DoIP_Client:
 				print "Sending DoiP Message"
 				print "TCP SEND :: %s" % (UDSString)
 				self.TCP_Socket.send(UDSString.decode("hex"))
+				return 0
 			except socket.error as err:
-				print "Unable to send UDS Message to ECU:%d. Socket failed with error %s" % (ECUID, err)		
+				print "Unable to send UDS Message to ECU:%d. Socket failed with error %s" % (ECUID, err)	
+				return -1
 				
 	def DoIPUDSRecv(self):	
-		print "TCP RECV :: "
-		DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper())
-		time.sleep(.05) # wait for ACK to be sent
+		if self.isTCPConnected:
+			try:
+				print "TCP RECV :: "
+				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper())
+				time.sleep(.05) # wait for ACK to be sent
 
-		if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE:
-			DoIPResponse = self.DoIPUDSRecv()
-		return DoIPResponse
+				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE:
+					DoIPResponse = self.DoIPUDSRecv()
+				return DoIPResponse
+			except socket.error as err:
+				print "Unable to receive UDS message. Socket failed with error %s" %(err)
+				return -1
 	def	Terminate(self):
 		print "Closing DoIP Client ..."
 		self.TCP_Socket.close()
@@ -235,6 +242,7 @@ class DoIPMsg:
 if __name__ == '__main__':
 	iHub = DoIP_Client()
 	iHub.ConnectToDoIPServer()
-	iHub.DoIPUDSSend(PyUDS.DSC +'02')
+	iHub.DoIPUDSSend(PyUDS.DSC +'02') # change diagnostic sessions
 	iHub.DoIPUDSRecv()
+	
 	iHub.Terminate()
