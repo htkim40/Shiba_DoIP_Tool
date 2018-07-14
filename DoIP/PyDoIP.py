@@ -120,6 +120,7 @@ class DoIP_Client:
 				self.isTCPConnected = False
 			
 		if routingActivation and self.isTCPConnected: 
+			self.targetECUAddr = targetECUAddr
 			self.RequestRoutingActivation()
 		elif routingActivation and not self.isTCPConnected:
 			print "Error :: DoIP client is not connected to a server"
@@ -142,11 +143,13 @@ class DoIP_Client:
 		else:
 			print "Error :: DoIP client is not connected to a server"
 	
-	def RequestRoutingActivation(self, activationType = DEFAULT_ACTIVATION, localECUAddr = None):
+	def RequestRoutingActivation(self, activationType = DEFAULT_ACTIVATION, localECUAddr = None, targetECUAddr = None):
 		if self.isTCPConnected:
 			try: 
 				if not localECUAddr:
 					localECUAddr = self.localECUAddr
+				if not targetECUAddr:
+					targetECUAddr = self.targetECUAddr
 				DoIPHeader = PROTOCOL_VERSION + INVERSE_PROTOCOL_VERSION + DOIP_ROUTING_ACTIVATION_REQUEST
 				payload = localECUAddr + activationType + ASRBISO + ASRBOEM
 				payloadLength = "%.8X" % (len(payload)/2) ##divide by 2 because 2 nibbles per byte
@@ -178,6 +181,7 @@ class DoIP_Client:
 					localECUAddr = self.localECUAddr
 				if not targetECUAddr:
 					targetECUAddr = self.targetECUAddr
+					print "Target ECU: " + targetECUAddr
 				DoIPHeader = PROTOCOL_VERSION + INVERSE_PROTOCOL_VERSION + DOIP_DIAGNOSTIC_MESSAGE
 				payload = self.localECUAddr + self.targetECUAddr + message #no ASRBISO
 				payloadLength = "%.8X" % (len(payload)/2)
@@ -264,7 +268,12 @@ if __name__ == '__main__':
 	iHub.DisconnectFromDoIPServer()
 	time.sleep(1)
 	iHub.ConnectToDoIPServer()
-	iHub.DoIPUDSSend('2EF194')
+	iHub.DoIPUDSSend('2EF195'+\
+		'00'+'0102030405060708'+\
+		'01'+'0102030405060708'+\
+		'02'+'0102030405060708'+\
+		'03'+'0102030405060708'+\
+		'04'+'0102030405060708')
 	iHub.DoIPUDSRecv()
 	iHub.DisconnectFromDoIPServer()
 	print "Waiting for iHub to wake up"
