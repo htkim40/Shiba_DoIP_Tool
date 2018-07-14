@@ -94,15 +94,15 @@ class DoIP_Client:
 				
 	def ConnectToDoIPServer(self, address = '172.26.200.101', port = 13400,  routingActivation = True, targetECUAddr = '2004'):
 		if self.isTCPConnected:
-			print "Error :: Already connected to a server. Close the connection before starting a new one"
+			print "Error :: Already connected to a server. Close the connection before starting a new one\n"
 		else:
 			if not self.TCP_Socket:
-				print "Warning :: Socket was recently closed but no new socket was created.\n Creating new socket with last available IP address and Port"
+				print "Warning :: Socket was recently closed but no new socket was created.\nCreating new socket with last available IP address and Port"
 				try:
 					self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 					self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 					self.TCP_Socket.bind((self.localIPAddr,self.localPort))
-					print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
+					print "Socket successfully created: Binded to %s:%d\n" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 				except socket.error as err:
 					print "Socket creation failed with error %s" %(err)
 					return err
@@ -112,7 +112,7 @@ class DoIP_Client:
 				self.targetPort = port
 				self.TCP_Socket.connect((address, port)) 
 				self.isTCPConnected = True	
-				print "Connection to DoIP established"
+				print "Connection to DoIP established\n"
 			except socket.error as err: 
 				print "Unable to connect to socket at %s:%d. Socket failed with error %s" % (address, port, err)
 				self.targetIPAddr = None
@@ -128,11 +128,12 @@ class DoIP_Client:
 	def DisconnectFromDoIPServer(self):
 		if self.isTCPConnected:
 			try: 
-				print "Disconnecting from DoIP server"
+				print "Disconnecting from DoIP server.."
 				self.TCP_Socket.shutdown(socket.SHUT_RDWR)
 				self.TCP_Socket.close()
 				self.TCP_Socket = None
 				self.isTCPConnected = 0
+				print "Connection successfully shut down\n"
 			except socket.error as err:
 				print "Unable to disconnect from socket at %s:%d. Socket failed with error %s." %(self.targetIPAddr, self.targetPort, err)
 				print "Warning :: Socket is currently in a metastable state." 
@@ -155,10 +156,11 @@ class DoIP_Client:
 				payloadLength = "%.8X" % (len(payload)/2) ##divide by 2 because 2 nibbles per byte
 				activationString = DoIPHeader + payloadLength + payload		
 				print "Requesting routing activation"
-				print "TCP SEND :: %s" %(activationString)
+				print "TCP SEND ::"
+				activationMessage = DoIPMsg(activationString)
 				self.TCP_Socket.send(activationString.decode("hex"))
 				activationResponse = (binascii.hexlify(self.TCP_Socket.recv(2048))).upper()
-				print "TCP RECV :: %s" %activationResponse
+				print "TCP RECV ::"
 				DoIPResponse = DoIPMsg(activationResponse)
 				if DoIPResponse.payload == '10':
 					self.isRoutingActivated = True;
@@ -181,12 +183,10 @@ class DoIP_Client:
 					localECUAddr = self.localECUAddr
 				if not targetECUAddr:
 					targetECUAddr = self.targetECUAddr
-					print "Target ECU: " + targetECUAddr
 				DoIPHeader = PROTOCOL_VERSION + INVERSE_PROTOCOL_VERSION + DOIP_DIAGNOSTIC_MESSAGE
 				payload = self.localECUAddr + self.targetECUAddr + message #no ASRBISO
 				payloadLength = "%.8X" % (len(payload)/2)
 				UDSString = DoIPHeader + payloadLength + payload
-				print "Sending DoiP Message"
 				print "TCP SEND ::"
 				DoIPTransmit = DoIPMsg(UDSString)
 				self.TCP_Socket.send(UDSString.decode("hex"))
@@ -198,7 +198,7 @@ class DoIP_Client:
 	def DoIPUDSRecv(self):	
 		if self.isTCPConnected:
 			try:
-				print "TCP RECV :: "
+				print "TCP RECV ::"
 				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper())
 				time.sleep(.05) # wait for ACK to be sent
 
@@ -276,8 +276,3 @@ if __name__ == '__main__':
 		'04'+'0102030405060708')
 	iHub.DoIPUDSRecv()
 	iHub.DisconnectFromDoIPServer()
-	print "Waiting for iHub to wake up"
-	
-
-	
-	#iHub.Terminate()
