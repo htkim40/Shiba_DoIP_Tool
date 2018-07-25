@@ -1,39 +1,69 @@
 '''
  Author: Hong Kim
 '''
+import sys 
+from PyQt4 import QtGui
+from PyQt4 import QtCore
 
-import Tkinter as tktr
+class DoIPToolGUI(QtGui.QMainWindow):
 
-class ShibaDoIPToolGUI:
-	def __init__(self):
-		self.width = 900
-		self.height = 500
+	def __init__(self, parent = None):
+		super(DoIPToolGUI, self).__init__(parent)
+		self.initUI()
+		self.setCentralWidget(self.tabs)
 		
-		self.rootFigHndl = tktr.Tk()
-		self.rootFigHndl.configure(width = self.width, height = self.height, bg = 'black')
-		self.SetFigCoords()
-		self.rootFigHndl.overrideredirect(True)
-		self.rootFigHndl.title("Shiba DoIP Tool")
-		self.rootFigHndl.configure(background = 'black')
+	def initUI(self):
+		#init window
+		self.setGeometry(100,100, 800,500)
+		self.setWindowTitle('Shiba DoIP Tool')
+		#self.setWindowIcon(QtGui.QIcon('<path to app icon here>'))  
+		self.layout = QtGui.QVBoxLayout(self)
 		
-	def SetFigCoords(self):
-		# get screen width and height
-		ws = self.rootFigHndl.winfo_screenwidth() # width of the screen
-		hs = self.rootFigHndl.winfo_screenheight() # height of the screen
-
-		# calculate x and y coordinates for the Tk self.rootFigHndl window
-		x = (ws/2) - (self.width/2)
-		y = (hs/2) - (self.height/2)
-
-		# set the dimensions of the screen 
-		# and where it is placed
-		self.rootFigHndl.geometry('%dx%d+%d+%d' % (self.width, self.height, x, y))
+		#init tabs
+		self.tabs	= QtGui.QTabWidget()
+		self.sequenceStudio = FF_SequenceStudioWidget(self)
+		self.tabs.addTab(self.sequenceStudio.tabHndl,"Sequence Studio")
+		self.flashCenter = FF_FlashCenterWidget(self)
+		self.tabs.addTab(self.flashCenter.tabHndl,"Flash Center")
+		self.layout.addWidget(self.tabs)
+		
+		self.show()
 	
-		
+	  
+class FF_SequenceStudioWidget(QtGui.QWidget):
+	def __init__(self,parent):
+		super(FF_SequenceStudioWidget, self).__init__(parent)
+
+		# Set layout of sequence studio tab
+		self.tabHndl	= QtGui.QWidget()	
+		self.layout	= QtGui.QVBoxLayout()
+		self.pushButton1 = QtGui.QPushButton("Start")
+		self.pushButton2 = QtGui.QPushButton("Settings")
+		self.pushButton3 = QtGui.QPushButton("Stop")
+		self.layout.addWidget(self.pushButton1)
+		self.layout.addWidget(self.pushButton2)
+		self.layout.addWidget(self.pushButton3)
+		self.tabHndl.setLayout(self.layout)   
+			
+
+class FF_FlashCenterWidget(QtGui.QWidget):
+	def __init__(self,parent):
+		super(FF_FlashCenterWidget, self).__init__(parent)
+
+		# Set layout of sequence center tab
+		self.tabHndl	= QtGui.QWidget()	
+		self.layout	= QtGui.QVBoxLayout()
+		self.pushButton1 = QtGui.QPushButton("Start")
+		self.pushButton2 = QtGui.QPushButton("Stop")
+		self.layout.addWidget(self.pushButton1)
+		self.layout.addWidget(self.pushButton2)
+		self.tabHndl.setLayout(self.layout)   
+    
 		
 def main():
-	jupiter = ShibaDoIPToolGUI()
-	jupiter.rootFigHndl.mainloop()
-		
-if __name__ == "__main__":
-	main()
+   app = QtGui.QApplication([])
+   root = DoIPToolGUI()
+   sys.exit(app.exec_())
+	
+if __name__ == '__main__':
+   main()
