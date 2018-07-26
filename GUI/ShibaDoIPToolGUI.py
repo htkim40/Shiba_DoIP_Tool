@@ -37,13 +37,43 @@ class FF_SequenceStudioWidget(QtGui.QWidget):
 		# Set layout of sequence studio tab
 		self.tabHndl	= QtGui.QWidget()	
 		self.layout	= QtGui.QVBoxLayout()
-		self.pushButton1 = QtGui.QPushButton("Start")
-		self.pushButton2 = QtGui.QPushButton("Settings")
-		self.pushButton3 = QtGui.QPushButton("Stop")
-		self.layout.addWidget(self.pushButton1)
-		self.layout.addWidget(self.pushButton2)
-		self.layout.addWidget(self.pushButton3)
+		playBut = QtGui.QPushButton("Play")
+		stopBut = QtGui.QPushButton("Stop")
+		creatCustomMsgBut = QtGui.QPushButton("Create Custom Message")
+		saveSequenceBut = QtGui.QPushButton("Save Sequence")
+		clearSequenceBut = QtGui.QPushButton("Clear Sequence")
+		saveTerminalBut = QtGui.QPushButton("Save Terminal")
+		clearTerminalBut = QtGui.QPushButton("Clear Terminal")
+		
+		#groupbox for sequence selection. This will eventually have the option
+		#to create your own custom message. Need to create a pop up to set 
+		#value of message, including an expected response
+		self.sequenceSelectionGroupbox = QtGui.QGroupBox()
+		self.sequenceSelectionGroupbox.setContentsMargins(10, 10, 10, 10)
+		self.sequenceSelectionGroupbox.layout = QtGui.QVBoxLayout()
+		self.sequenceSelectionGroupbox.layout.addWidget(creatCustomMsgBut)
+		self.sequenceSelectionGroupbox.setLayout(self.sequenceSelectionGroupbox.layout)
+		
+		self.sequenceEditorGroupbox = QtGui.QGroupBox()
+		self.sequenceEditorGroupbox.setContentsMargins(10, 10, 10, 10)
+		self.sequenceEditorGroupbox.layout = QtGui.QVBoxLayout()
+		self.sequenceEditorGroupbox.layout.addWidget(saveSequenceBut)
+		self.sequenceEditorGroupbox.layout.addWidget(clearSequenceBut)
+		self.sequenceEditorGroupbox.layout.addWidget(playBut)
+		self.sequenceEditorGroupbox.layout.addWidget(stopBut)
+		self.sequenceEditorGroupbox.setLayout(self.sequenceEditorGroupbox.layout)
+		
+		self.targetIPLineEdit  = QtGui.QLineEdit()
+		
+		self.layout.addWidget(saveTerminalBut)
+		self.layout.addWidget(saveTerminalBut)
+		
+		self.layout.addWidget(self.targetIPLineEdit)
+		
+		self.layout.addWidget(self.sequenceSelectionGroupbox)
+		self.layout.addWidget(self.sequenceEditorGroupbox)
 		self.tabHndl.setLayout(self.layout)   
+		
 			
 
 class FF_FlashCenterWidget(QtGui.QWidget):
@@ -58,6 +88,7 @@ class FF_FlashCenterWidget(QtGui.QWidget):
 		self.layout.addWidget(self.pushButton1)
 		self.layout.addWidget(self.pushButton2)
 		self.tabHndl.setLayout(self.layout)   
+		
     
 		
 def main():
