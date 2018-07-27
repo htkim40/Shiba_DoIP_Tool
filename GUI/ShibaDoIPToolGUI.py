@@ -17,16 +17,22 @@ class DoIPToolGUI(QtGui.QMainWindow):
 		self.setGeometry(100,100, 800,500)
 		self.setWindowTitle('Shiba DoIP Tool')
 		#self.setWindowIcon(QtGui.QIcon('<path to app icon here>'))  
-		self.layout = QtGui.QVBoxLayout(self)
+		self.layout = QtGui.QVBoxLayout()		
 		
 		#init tabs
-		self.tabs	= QtGui.QTabWidget()
+		self.tabs = QtGui.QTabWidget()
+		self.tabs.setTabPosition(2)
+#		self.tabs.setStyleSheet("background-color:darkGray;")
 		self.sequenceStudio = FF_SequenceStudioWidget(self)
-		self.tabs.addTab(self.sequenceStudio.tabHndl,"Sequence Studio")
 		self.flashCenter = FF_FlashCenterWidget(self)
+		self.tabs.addTab(self.sequenceStudio.tabHndl,"Sequence Studio")
 		self.tabs.addTab(self.flashCenter.tabHndl,"Flash Center")
 		self.layout.addWidget(self.tabs)
+
 		
+#		self.setPalette(windowPalette)
+		self.setStyleSheet("background-color:darkGray;")
+		self.setLayout(self.layout)
 		self.show()
 	
 	  
@@ -71,13 +77,6 @@ class FF_SequenceStudioWidget(QtGui.QWidget):
 		self.messageSelectionGroupbox.layout.addWidget(msgSelectionTable)
 		self.messageSelectionGroupbox.setLayout(self.messageSelectionGroupbox.layout)
 		
-
- 
-
-
-
-		
-		
 		#groupbox for sequence editor. This field will be used to populate 
 		#a table of messages to be sent sequentially. The messages should be
 		#drag and droppable. If we hit play, it should start sending out on 
@@ -97,12 +96,13 @@ class FF_SequenceStudioWidget(QtGui.QWidget):
 		
 		self.layout.addWidget(saveTerminalBtn)
 		self.layout.addWidget(saveTerminalBtn)
-		
 		self.layout.addWidget(self.targetIPLineEdit)
-		
 		self.layout.addWidget(self.messageSelectionGroupbox)
 		self.layout.addWidget(self.sequenceEditorGroupbox)
+		
 		self.tabHndl.setLayout(self.layout)   
+		self.tabHndl.setStyleSheet("background-color:darkGray;")
+		
 		
 			
 
