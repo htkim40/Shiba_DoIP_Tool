@@ -84,7 +84,7 @@ class DoIP_Client:
 			self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
-			return 0
+			return None
 		except socket.error as err:
 			print "Socket creation failed with error %s" %(err)
 			self.TCP_Socket = None
@@ -203,11 +203,9 @@ class DoIP_Client:
 				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper())
 				time.sleep(.05) # wait for ACK to be sent
 
-				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE:
+				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or DoIPResponse.payload == :
 					DoIPResponse = self.DoIPUDSRecv()
 					return DoIPResponse
-				else:
-					return -2
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
 				return -1
@@ -216,9 +214,12 @@ class DoIP_Client:
 		self.DoIPUDSSend(PyUDS.RDBI+DID)
 		
 		
-	def DoIPWriteDID(self,DID,Msg):
-		self.DoIPUDSSend(PyUDS.RDBI+DID)
+	def DoIPWriteDID(self,DID,msg):
+		self.DoIPUDSSend(PyUDS.WDBI+DID+msg)
 
+	def DoIPEraseMemory(self, componentID):
+		self.DoIPUDSSend('3101FF00'+str(componentID))
+		
 	
 	def	Terminate(self):
 		print "Closing DoIP Client ..."
@@ -276,23 +277,61 @@ def DoIP_Flash_Hex():
 	#start a DoIP client
 	flashingClient = DoIP_Client()
 	
-	if flashingClient == 0:
-		
+	if flashingClient:
+	
+		flashingClient.ConnectToDoIPServer()
 		print "Switching to programming diagnostic session" 
 		flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
-		
-		if flashingClient.DoIPUDSRecv() != -1 and flashingClient.DoIPUDSRecv() != -2: #if no negative acknowledge or socket error 
-			flashingClient.DisconnectFromDoIPServer()
+		ret = flashingClient.DoIPUDSRecv()
+		if ret != -1 and ret != -2: #if no negative acknowledge or socket error 
 			flashingClient.DisconnectFromDoIPServer()
 			time.sleep(1)
 			flashingClient.ConnectToDoIPServer()
 			
-			#initial seed key exchange 
+			##### initial seed key exchange ######
 			
 			#Read DIDS
+			print "Reading old tester finger print"
 			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
 			flashingClient.DoIPUDSRecv()
+			
+			print "Writing new tester finger print"
+			#we will need to replace the first line with the date
+			flashingClient.DoIPWriteDID(PyUDS.DID_WRFPRNT,'180727'+\
+                                        '484F4E472D2D4849'+\
+                                        '4C2D544553542D54'+\
+                                        '45414D0304050607'+\
+                                        '08090A0B0C0D0E0F'+\
+                                        '0001020304050607'+\
+                                        '5858585858585858')
+			flashingClient.DoIPUDSRecv()
+			
+			print "Verifying new tester finger print"
+			#compare with the date here
+			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
+			flashingClient.DoIPUDSRecv()
+			
+			#read and store old BL SW ID 
+			#to-do: decipher and store relevant info
+			print "Reading Bootloader SW ID"
+			flashingClient.DoIPReadDID(PyUDS.DID_BOOTSID)
+			flashingClient.DoIPUDSRecv()
+			
+			#read and store old APP and CAL SW ID
+			##to-do: decipher and store relevant info
+			print "Reading Application and Calibration SW ID"
+			flashingClient.DoIPReadDID(PyUDS.DID_APCASID)
+			flashingClient.DoIPUDSRecv()
+			
+			
+			print "Erasing memory for component ID 0"
+			flashingClient.DoIPEraseMemory('00');
+			flashingClient.DoIPUDSRecv()
+			
+			
+			
 		else:
+			print ret
 			print "Error while switching to programming diagnostic session. Exiting flash sequence"
 	else : 
 		print "Error while creating flash client. Unable to initiate flash sequence"
