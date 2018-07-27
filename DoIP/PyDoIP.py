@@ -211,6 +211,15 @@ class DoIP_Client:
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
 				return -1
+				
+	def DoIPReadDID(self,DID):
+		self.DoIPUDSSend(PyUDS.RDBI+DID)
+		
+		
+	def DoIPWriteDID(self,DID,Msg):
+		self.DoIPUDSSend(PyUDS.RDBI+DID)
+
+	
 	def	Terminate(self):
 		print "Closing DoIP Client ..."
 		self.TCP_Socket.close()
@@ -270,16 +279,19 @@ def DoIP_Flash_Hex():
 	if flashingClient == 0:
 		
 		print "Switching to programming diagnostic session" 
-		iHub.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
+		flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
 		
-		if iHub.DoIPUDSRecv() != -1 and iHub.DoIPUDSRecv() != -2: #if no negative acknowledge or socket error 
-			iHub.DisconnectFromDoIPServer()
-			iHub.DisconnectFromDoIPServer()
+		if flashingClient.DoIPUDSRecv() != -1 and flashingClient.DoIPUDSRecv() != -2: #if no negative acknowledge or socket error 
+			flashingClient.DisconnectFromDoIPServer()
+			flashingClient.DisconnectFromDoIPServer()
 			time.sleep(1)
-			iHub.ConnectToDoIPServer()
+			flashingClient.ConnectToDoIPServer()
 			
 			#initial seed key exchange 
 			
+			#Read DIDS
+			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
+			flashingClient.DoIPUDSRecv()
 		else:
 			print "Error while switching to programming diagnostic session. Exiting flash sequence"
 	else : 
@@ -287,18 +299,4 @@ def DoIP_Flash_Hex():
 
         
 if __name__ == '__main__':
-	iHub = DoIP_Client()
-	iHub.ConnectToDoIPServer()
-	iHub.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS) # change diagnostic sessions to programming session
-	iHub.DoIPUDSRecv()
-	iHub.DisconnectFromDoIPServer()
-	time.sleep(1)
-	iHub.ConnectToDoIPServer()
-	iHub.DoIPUDSSend('2EF195'+\
-		'00'+'0102030405060708'+\
-		'01'+'0102030405060708'+\
-		'02'+'0102030405060708'+\
-		'03'+'0102030405060708'+\
-		'04'+'0102030405060708')
-	iHub.DoIPUDSRecv()
-	iHub.DisconnectFromDoIPServer()
+	DoIP_Flash_Hex()
