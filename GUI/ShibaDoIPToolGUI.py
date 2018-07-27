@@ -37,6 +37,8 @@ class FF_SequenceStudioWidget(QtGui.QWidget):
 		# Set layout of sequence studio tab
 		self.tabHndl	= QtGui.QWidget()	
 		self.layout	= QtGui.QVBoxLayout()
+		
+		#push buttons 
 		playBtn = QtGui.QPushButton("Play")
 		stopBtn = QtGui.QPushButton("Stop")
 		creatCustomMsgBtn = QtGui.QPushButton("Create Custom Message")
@@ -45,6 +47,20 @@ class FF_SequenceStudioWidget(QtGui.QWidget):
 		saveTerminalBtn = QtGui.QPushButton("Save Terminal")
 		clearTerminalBtn = QtGui.QPushButton("Clear Terminal")
 		
+		#tables
+		msgSelectionItem = []
+		msgSelectionTable = QtGui.QTableWidget()
+		##can use msg slection items and start appending from a list...
+		msgSelectionItem.append( QtGui.QTableWidgetItem("0"))
+		
+		msgSelectionTable.setWindowTitle("Available Messages")
+		msgSelectionTable.setRowCount(10)
+		msgSelectionTable.setColumnCount(1)
+		##set table data
+		msgSelectionTable.setItem(0,0, msgSelectionItem[0])
+
+		
+		
 		#groupbox for message selection. This will eventually have the option
 		#to create your own custom message. Need to create a pop up to set 
 		#value of message, including an expected response
@@ -52,7 +68,14 @@ class FF_SequenceStudioWidget(QtGui.QWidget):
 		self.messageSelectionGroupbox.setContentsMargins(10, 10, 10, 10)
 		self.messageSelectionGroupbox.layout = QtGui.QVBoxLayout()
 		self.messageSelectionGroupbox.layout.addWidget(creatCustomMsgBtn)
+		self.messageSelectionGroupbox.layout.addWidget(msgSelectionTable)
 		self.messageSelectionGroupbox.setLayout(self.messageSelectionGroupbox.layout)
+		
+
+ 
+
+
+
 		
 		
 		#groupbox for sequence editor. This field will be used to populate 
