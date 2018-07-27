@@ -263,15 +263,23 @@ class DoIPMsg:
 		return payloadTypeDescription.get(int(payloadType), "Invalid or unregistered diagnostic payload type")
 			
 def DoIP_Flash_Hex():
+	
 	#start a DoIP client
 	flashingClient = DoIP_Client()
+	
 	if flashingClient == 0:
+		
 		print "Switching to programming diagnostic session" 
 		iHub.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
+		
 		if iHub.DoIPUDSRecv() != -1 and iHub.DoIPUDSRecv() != -2: #if no negative acknowledge or socket error 
 			iHub.DisconnectFromDoIPServer()
 			iHub.DisconnectFromDoIPServer()
 			time.sleep(1)
+			iHub.ConnectToDoIPServer()
+			
+			#initial seed key exchange 
+			
 		else:
 			print "Error while switching to programming diagnostic session. Exiting flash sequence"
 	else : 
