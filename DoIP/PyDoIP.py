@@ -201,9 +201,9 @@ class DoIP_Client:
 			try:
 				print "TCP RECV ::"
 				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper())
-				time.sleep(.05) # wait for ACK to be sent
+				#time.sleep(.001) # wait for ACK to be sent
 
-				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or DoIPResponse.payload == :
+				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or DoIPResponse.payload == PyUDS.MOPNDNG:
 					DoIPResponse = self.DoIPUDSRecv()
 					return DoIPResponse
 			except socket.error as err:
@@ -272,7 +272,7 @@ class DoIPMsg:
 	def DecodePayloadType(self,payloadType):
 		return payloadTypeDescription.get(int(payloadType), "Invalid or unregistered diagnostic payload type")
 			
-def DoIP_Flash_Hex():
+def DoIP_Flash_Hex(componentID, ihexFP):
 	
 	#start a DoIP client
 	flashingClient = DoIP_Client()
@@ -282,8 +282,8 @@ def DoIP_Flash_Hex():
 		flashingClient.ConnectToDoIPServer()
 		print "Switching to programming diagnostic session" 
 		flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
-		ret = flashingClient.DoIPUDSRecv()
-		if ret != -1 and ret != -2: #if no negative acknowledge or socket error 
+		doipRespone = flashingClient.DoIPUDSRecv()
+		if doipRespone != -1 and doipRespone != -2: #if no negative acknowledge or socket error 
 			flashingClient.DisconnectFromDoIPServer()
 			time.sleep(1)
 			flashingClient.ConnectToDoIPServer()
@@ -293,7 +293,7 @@ def DoIP_Flash_Hex():
 			#Read DIDS
 			print "Reading old tester finger print"
 			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
-			flashingClient.DoIPUDSRecv()
+			doipRespone = flashingClient.DoIPUDSRecv()
 			
 			print "Writing new tester finger print"
 			#we will need to replace the first line with the date
@@ -304,29 +304,58 @@ def DoIP_Flash_Hex():
                                         '08090A0B0C0D0E0F'+\
                                         '0001020304050607'+\
                                         '5858585858585858')
-			flashingClient.DoIPUDSRecv()
+			doipRespone = flashingClient.DoIPUDSRecv()
 			
 			print "Verifying new tester finger print"
 			#compare with the date here
 			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
-			flashingClient.DoIPUDSRecv()
+			doipRespone = flashingClient.DoIPUDSRecv()
 			
 			#read and store old BL SW ID 
 			#to-do: decipher and store relevant info
 			print "Reading Bootloader SW ID"
 			flashingClient.DoIPReadDID(PyUDS.DID_BOOTSID)
-			flashingClient.DoIPUDSRecv()
+			doipRespone = flashingClient.DoIPUDSRecv()
 			
 			#read and store old APP and CAL SW ID
 			##to-do: decipher and store relevant info
 			print "Reading Application and Calibration SW ID"
 			flashingClient.DoIPReadDID(PyUDS.DID_APCASID)
-			flashingClient.DoIPUDSRecv()
+			doipRespone = flashingClient.DoIPUDSRecv()
 			
 			
+			#Erase component memory for target component
 			print "Erasing memory for component ID 0"
-			flashingClient.DoIPEraseMemory('00');
-			flashingClient.DoIPUDSRecv()
+			flashingClient.DoIPEraseMemory(componentID);
+			doipRespone = flashingClient.DoIPUDSRecv()
+			
+			#get hex file stats
+			from intelhex import IntelHex
+			ih = IntelHex()
+			ih.loadhex(ihexFP)
+			
+			minAddr = ih.minaddr()
+			maxAddr = ih.maxaddr()
+			memSize = maxAddr - minAddr
+			
+			minAddrStr = "%.8X" % minAddr
+			maxAddrStr = "%.8X" % maxAddr
+			memSizeStr = "%.8X" % memSize
+			print "Start Address: " + minAddrStr + " (%.10d)" % minAddr
+			print "End Address:   " + maxAddrStr + " (%.10d)" % maxAddr
+			print "Total Memory:  " + memSizeStr + " (%.10d)" % memSize
+			
+			pydict = ih.todict()
+			hexDataStr = ''
+			addDataStr = ''
+			
+			#read in data from hex file
+			
+			for address in pydict:
+				hexDataStr = hexDataStr + str(pydict[address]) + '\t' + str(address) + '\n'
+			with open('testfile.txt', 'w+') as file:
+				file.write(hexDataStr)
+			#request download
 			
 			
 			
@@ -338,4 +367,4 @@ def DoIP_Flash_Hex():
 
         
 if __name__ == '__main__':
-	DoIP_Flash_Hex()
+	DoIP_Flash_Hex('00','BGW_BL_AB.hex')
