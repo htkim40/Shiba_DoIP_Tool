@@ -37,40 +37,47 @@ class FF_SequenceStudioWidget(QtGui.QWidget):
 		# Set layout of sequence studio tab
 		self.tabHndl	= QtGui.QWidget()	
 		self.layout	= QtGui.QVBoxLayout()
-		playBut = QtGui.QPushButton("Play")
-		stopBut = QtGui.QPushButton("Stop")
-		creatCustomMsgBut = QtGui.QPushButton("Create Custom Message")
-		saveSequenceBut = QtGui.QPushButton("Save Sequence")
-		clearSequenceBut = QtGui.QPushButton("Clear Sequence")
-		saveTerminalBut = QtGui.QPushButton("Save Terminal")
-		clearTerminalBut = QtGui.QPushButton("Clear Terminal")
+		playBtn = QtGui.QPushButton("Play")
+		stopBtn = QtGui.QPushButton("Stop")
+		creatCustomMsgBtn = QtGui.QPushButton("Create Custom Message")
+		saveSequenceBtn = QtGui.QPushButton("Save Sequence")
+		clearSequenceBtn = QtGui.QPushButton("Clear Sequence")
+		saveTerminalBtn = QtGui.QPushButton("Save Terminal")
+		clearTerminalBtn = QtGui.QPushButton("Clear Terminal")
 		
-		#groupbox for sequence selection. This will eventually have the option
+		#groupbox for message selection. This will eventually have the option
 		#to create your own custom message. Need to create a pop up to set 
 		#value of message, including an expected response
-		self.sequenceSelectionGroupbox = QtGui.QGroupBox()
-		self.sequenceSelectionGroupbox.setContentsMargins(10, 10, 10, 10)
-		self.sequenceSelectionGroupbox.layout = QtGui.QVBoxLayout()
-		self.sequenceSelectionGroupbox.layout.addWidget(creatCustomMsgBut)
-		self.sequenceSelectionGroupbox.setLayout(self.sequenceSelectionGroupbox.layout)
+		self.messageSelectionGroupbox = QtGui.QGroupBox()
+		self.messageSelectionGroupbox.setContentsMargins(10, 10, 10, 10)
+		self.messageSelectionGroupbox.layout = QtGui.QVBoxLayout()
+		self.messageSelectionGroupbox.layout.addWidget(creatCustomMsgBtn)
+		self.messageSelectionGroupbox.setLayout(self.messageSelectionGroupbox.layout)
 		
+		
+		#groupbox for sequence editor. This field will be used to populate 
+		#a table of messages to be sent sequentially. The messages should be
+		#drag and droppable. If we hit play, it should start sending out on 
+		#the terminal for view. Then rx signals should come too. Each message can
+		#come with an optional : 1) wait time, 2) expected rx value. 
+		#A check box for doing routing activation to be on or off will be provided too. 
 		self.sequenceEditorGroupbox = QtGui.QGroupBox()
 		self.sequenceEditorGroupbox.setContentsMargins(10, 10, 10, 10)
 		self.sequenceEditorGroupbox.layout = QtGui.QVBoxLayout()
-		self.sequenceEditorGroupbox.layout.addWidget(saveSequenceBut)
-		self.sequenceEditorGroupbox.layout.addWidget(clearSequenceBut)
-		self.sequenceEditorGroupbox.layout.addWidget(playBut)
-		self.sequenceEditorGroupbox.layout.addWidget(stopBut)
+		self.sequenceEditorGroupbox.layout.addWidget(saveSequenceBtn)
+		self.sequenceEditorGroupbox.layout.addWidget(clearSequenceBtn)
+		self.sequenceEditorGroupbox.layout.addWidget(playBtn)
+		self.sequenceEditorGroupbox.layout.addWidget(stopBtn)
 		self.sequenceEditorGroupbox.setLayout(self.sequenceEditorGroupbox.layout)
 		
 		self.targetIPLineEdit  = QtGui.QLineEdit()
 		
-		self.layout.addWidget(saveTerminalBut)
-		self.layout.addWidget(saveTerminalBut)
+		self.layout.addWidget(saveTerminalBtn)
+		self.layout.addWidget(saveTerminalBtn)
 		
 		self.layout.addWidget(self.targetIPLineEdit)
 		
-		self.layout.addWidget(self.sequenceSelectionGroupbox)
+		self.layout.addWidget(self.messageSelectionGroupbox)
 		self.layout.addWidget(self.sequenceEditorGroupbox)
 		self.tabHndl.setLayout(self.layout)   
 		
