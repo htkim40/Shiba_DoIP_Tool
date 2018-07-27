@@ -84,6 +84,7 @@ class DoIP_Client:
 			self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
+			return 0
 		except socket.error as err:
 			print "Socket creation failed with error %s" %(err)
 			self.TCP_Socket = None
@@ -204,7 +205,9 @@ class DoIP_Client:
 
 				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE:
 					DoIPResponse = self.DoIPUDSRecv()
-				return DoIPResponse
+					return DoIPResponse
+				else:
+					return -2
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
 				return -1
@@ -259,11 +262,26 @@ class DoIPMsg:
 	def DecodePayloadType(self,payloadType):
 		return payloadTypeDescription.get(int(payloadType), "Invalid or unregistered diagnostic payload type")
 			
+def DoIP_Flash_Hex():
+	#start a DoIP client
+	flashingClient = DoIP_Client()
+	if flashingClient == 0:
+		print "Switching to programming diagnostic session" 
+		iHub.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
+		if iHub.DoIPUDSRecv() != -1 and iHub.DoIPUDSRecv() != -2: #if no negative acknowledge or socket error 
+			iHub.DisconnectFromDoIPServer()
+			iHub.DisconnectFromDoIPServer()
+			time.sleep(1)
+		else:
+			print "Error while switching to programming diagnostic session. Exiting flash sequence"
+	else : 
+		print "Error while creating flash client. Unable to initiate flash sequence"
+
         
 if __name__ == '__main__':
 	iHub = DoIP_Client()
 	iHub.ConnectToDoIPServer()
-	iHub.DoIPUDSSend(PyUDS.DSC +'02') # change diagnostic sessions
+	iHub.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS) # change diagnostic sessions to programming session
 	iHub.DoIPUDSRecv()
 	iHub.DisconnectFromDoIPServer()
 	time.sleep(1)
