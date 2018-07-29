@@ -7,8 +7,8 @@ import time
 ##DoIP Header Structure : <protocol version><inverse protocol version><payload type><payloadlength><payload>
 ##Payload format : <local ecu address> <optional: target ecu addres> <optional message ><ASRBISO><ASRBOEM>
 
-PROTOCOL_VERSION = 							'02'
-INVERSE_PROTOCOL_VERSION = 					'FD'
+PROTOCOL_VERSION = DOIP_PV =						'02'
+INVERSE_PROTOCOL_VERSION = DOIP_IPV = 			'FD'
 
 ##Payload type definitions##
 DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE = DOIP_NARP = '0000'
@@ -38,7 +38,7 @@ DOIP_ENTITY_STATUS_RESPONSE = 				'4002'
 DOIP_DIAGNOSTIC_POWER_MODE_INFO_REQUEST = 	'4003'
 DOIP_DIAGNOSTIC_POWER_MODE_INFO_RESPONSE = 	'4004'
 #0x4005-0x8000 Reserved by ISO13400
-DOIP_DIAGNOSTIC_MESSAGE = 					'8001'
+DOIP_DIAGNOSTIC_MESSAGE = DOIP_UDS = 		'8001'
 DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE = 		'8002'
 DOIP_DIAGNOSTIC_NEGATIVE_ACKNOWLEDGE = 		'8003'
 #0x8004-0xEFFF Reserved by ISO13400
@@ -230,7 +230,7 @@ class DoIP_Client:
 		self.Terminate
      
 class DoIPMsg: 
-	def __init__(self,message = None):
+	def __init__(self,message = None, verbose = False):
 		if not message:
 			self.messageString = None
 			self.protcolVersion = self.inverseProtocolVersion = None
@@ -238,7 +238,6 @@ class DoIPMsg:
 			self.sourceAddress = self.targetAddress = None
 			self.isUDS = False
 		else:		
-			print str(message)
 			self.messageString = message
 			self.protcolVersion =  message[0:2]
 			self.inverseProtocolVersion = message[2:4]
@@ -256,7 +255,9 @@ class DoIPMsg:
 			else:
 				self.payload = message[24:len(message)-len(ASRBISO)]
 				self.isUDS = False
-			self.PrintMessage()
+			if verbose:
+				print str(message)
+				self.PrintMessage()
 			
 	def PrintMessage(self):
 		print "Protocol Version 		: " + str(self.protcolVersion)
@@ -329,10 +330,9 @@ def DoIP_Flash_Hex(componentID, ihexFP):
 			flashingClient.DoIPEraseMemory(componentID);
 			doipRespone = flashingClient.DoIPUDSRecv()
 			
-			#get hex file stats
 			from intelhex import IntelHex
 			ih = IntelHex()
-			ih.loadhex(ihexFP)
+			ih.loadhex('BGW_BL_AB.hex')
 			
 			minAddr = ih.minaddr()
 			maxAddr = ih.maxaddr()
@@ -345,17 +345,27 @@ def DoIP_Flash_Hex(componentID, ihexFP):
 			print "End Address:   " + maxAddrStr + " (%.10d)" % maxAddr
 			print "Total Memory:  " + memSizeStr + " (%.10d)" % memSize
 			
-			pydict = ih.todict()
+			#request download here. Set maxBlockByteCount to valu from request download
+			maxBlockByteCount = 512
+			blockByteCount = 0
+			
+			#read in data from hex file	
 			hexDataStr = ''
-			addDataStr = ''
+			hexDataList = []
+			for address in range(minAddr,maxAddr+1):
+				#print '%.8X\t%.2X' % (address,ih[address])
+				hexDataStr = hexDataStr + '%.2X' % ih[address]
+				blockByteCount+=1
+				if blockByteCount == maxBlockByteCount:
+					hexDataList.append(hexDataStr)
+					hexDataStr = ''
+					blockByteCount = 0
+			hexDataList.append(hexDataStr)
 			
-			#read in data from hex file
-			
-			for address in pydict:
-				hexDataStr = hexDataStr + str(pydict[address]) + '\t' + str(address) + '\n'
-			with open('testfile.txt', 'w+') as file:
-				file.write(hexDataStr)
-			#request download
+			print 'Block size(bytes): 		%d'% (len(hexDataList))
+			print 'Final block size(bytes):	%d'% (len(hexDataList[0])/2)
+			print 'Total Blocks sent:		%d'% (len(hexDataList[len(hexDataList)-1])/2)
+
 			
 			
 			
@@ -365,6 +375,17 @@ def DoIP_Flash_Hex(componentID, ihexFP):
 	else : 
 		print "Error while creating flash client. Unable to initiate flash sequence"
 
-        
+def main():
+	print "Main"
+		
+		
 if __name__ == '__main__':
-	DoIP_Flash_Hex('00','BGW_BL_AB.hex')
+	main()
+#	DoIP_Flash_Hex('00','BGW_BL_AB.hex')
+
+#	Test use of doIP message
+#	udspl = '5001'
+#	plLen = '%.8X'%len(udspl)
+#	srcAddr = '1111'
+#	trgtAddr = '2004'
+#	DoIPMsg(DOIP_PV+DOIP_IPV+DOIP_UDS+plLen+udspl+srcAddr+trgtAddr+'5001',verbose = True)
