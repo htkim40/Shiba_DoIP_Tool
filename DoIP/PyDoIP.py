@@ -206,11 +206,12 @@ class DoIP_Client:
 				if self.isVerbose:
 					print "TCP RECV ::"
 				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper(),self.isVerbose)
-				#time.sleep(.001) # wait for ACK to be sent
 
-				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or DoIPResponse.payload == PyUDS.MOPNDNG:
+				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
+				DoIPResponse.payload == PyUDS.MOPNDNG or\ #memory operation pending
+				DoIPResponse.payload == PyUDS.TOPNDNG: #transfer data operation pending
 					DoIPResponse = self.DoIPUDSRecv()
-					return DoIPResponse
+				return DoIPResponse
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
 				return -1
@@ -225,9 +226,16 @@ class DoIP_Client:
 	def DoIPEraseMemory(self, componentID):
 		self.DoIPUDSSend('3101FF00'+str(componentID))
 		
-	def DoIPRequestDownload(self,,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
+	def DoIPRequestDownload(self,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
 		self.DoIPUDSSend(PyUDS.RD+dataFormatID+addrLenFormatID+memAddr+memSize)
-	
+		dlMsg = self.DoIPUDSRecv()
+		dlLenFormatID = int(dlMsg.payload[2],16)#number of bytes 
+		return int(dlMsg.payload[4:(2*dlLenFormatID+4)],16)
+		
+	def DoIPTransferData(self,blockIndex,data):
+		self.DoIPUDSSend(PyUDS.TD + blockIndex + data)
+		
+	def DoIPTransferExit(self):
 		
 	def SetVerbosity(self, verbose):
 		self.isVerbose = verbose
@@ -247,6 +255,7 @@ class DoIPMsg:
 			self.protcolVersion = self.inverseProtocolVersion = None
 			self.payloadType = self.payloadLength = None
 			self.sourceAddress = self.targetAddress = None
+			self.payload = None
 			self.isUDS = False
 		else:		
 			self.messageString = message
@@ -360,7 +369,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 			
 			#request download here. Set maxBlockByteCount to valu from request download
 			flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr)
-			maxBlockByteCount = 512
+			maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr) - 2 #subtract 2 for SID and index
 			blockByteCount = 0
 			
 			#read in data from hex file	
@@ -375,10 +384,19 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 					hexDataStr = ''
 					blockByteCount = 0
 			hexDataList.append(hexDataStr)
+
+			blockIndex = 1
+			for block in hexDataList: 
+				blockIndexStr = '%.2X' % (blockIndex&0xFF)
+				flashingClient.DoIPTransferData(blockIndexStr,block)
+				flashingClient.DoIPUDSRecv()
+				print blockIndex
+				blockIndex+=1
 			
-			print 'Block size(bytes): 		%d'% (len(hexDataList))
-			print 'Final block size(bytes):	%d'% (len(hexDataList[0])/2)
-			print 'Total Blocks sent:		%d'% (len(hexDataList[len(hexDataList)-1])/2)
+			
+			print 'Total Blocks sent: 		%d'% (len(hexDataList))
+			print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
+			print 'Final block size(bytes):	%d'% (len(hexDataList[len(hexDataList)-1])/2)
 
 			
 			
