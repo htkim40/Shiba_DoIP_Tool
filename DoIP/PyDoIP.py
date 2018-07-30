@@ -78,6 +78,7 @@ class DoIP_Client:
 		self.targetECUAddr = None
 		self.isTCPConnected = False
 		self.isRoutingActivated = False
+		self.isVerbose = False
 
 		try:
 			self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -157,12 +158,14 @@ class DoIP_Client:
 				payloadLength = "%.8X" % (len(payload)/2) ##divide by 2 because 2 nibbles per byte
 				activationString = DoIPHeader + payloadLength + payload		
 				print "Requesting routing activation"
-				print "TCP SEND ::"
-				activationMessage = DoIPMsg(activationString)
+				if self.isVerbose:
+					print "TCP SEND ::"
+				activationMessage = DoIPMsg(activationString,self.isVerbose)
 				self.TCP_Socket.send(activationString.decode("hex"))
 				activationResponse = (binascii.hexlify(self.TCP_Socket.recv(2048))).upper()
-				print "TCP RECV ::"
-				DoIPResponse = DoIPMsg(activationResponse)
+				if self.isVerbose:
+					print "TCP RECV ::"
+				DoIPResponse = DoIPMsg(activationResponse,self.isVerbose)
 				if DoIPResponse.payload == '10':
 					self.isRoutingActivated = True;
 					self.targetECUAddr = DoIPResponse.targetAddress
@@ -188,8 +191,9 @@ class DoIP_Client:
 				payload = self.localECUAddr + self.targetECUAddr + message #no ASRBISO
 				payloadLength = "%.8X" % (len(payload)/2)
 				UDSString = DoIPHeader + payloadLength + payload
-				print "TCP SEND ::"
-				DoIPTransmit = DoIPMsg(UDSString)
+				if self.isVerbose:
+					print "TCP SEND ::"
+				DoIPTransmit = DoIPMsg(UDSString,self.isVerbose)
 				self.TCP_Socket.send(UDSString.decode("hex"))
 				return 0
 			except socket.error as err:
@@ -199,8 +203,9 @@ class DoIP_Client:
 	def DoIPUDSRecv(self):	
 		if self.isTCPConnected:
 			try:
-				print "TCP RECV ::"
-				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper())
+				if self.isVerbose:
+					print "TCP RECV ::"
+				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper(),self.isVerbose)
 				#time.sleep(.001) # wait for ACK to be sent
 
 				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or DoIPResponse.payload == PyUDS.MOPNDNG:
@@ -220,6 +225,12 @@ class DoIP_Client:
 	def DoIPEraseMemory(self, componentID):
 		self.DoIPUDSSend('3101FF00'+str(componentID))
 		
+	def DoIPRequestDownload(self,,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
+		self.DoIPUDSSend(PyUDS.RD+dataFormatID+addrLenFormatID+memAddr+memSize)
+	
+		
+	def SetVerbosity(self, verbose):
+		self.isVerbose = verbose
 	
 	def	Terminate(self):
 		print "Closing DoIP Client ..."
@@ -273,10 +284,12 @@ class DoIPMsg:
 	def DecodePayloadType(self,payloadType):
 		return payloadTypeDescription.get(int(payloadType), "Invalid or unregistered diagnostic payload type")
 			
-def DoIP_Flash_Hex(componentID, ihexFP):
+def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 	
 	#start a DoIP client
+	
 	flashingClient = DoIP_Client()
+	flashingClient.SetVerbosity(verbose)
 	
 	if flashingClient:
 	
@@ -346,6 +359,7 @@ def DoIP_Flash_Hex(componentID, ihexFP):
 			print "Total Memory:  " + memSizeStr + " (%.10d)" % memSize
 			
 			#request download here. Set maxBlockByteCount to valu from request download
+			flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr)
 			maxBlockByteCount = 512
 			blockByteCount = 0
 			
@@ -381,7 +395,7 @@ def main():
 		
 if __name__ == '__main__':
 	main()
-#	DoIP_Flash_Hex('00','BGW_BL_AB.hex')
+	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = True)
 
 #	Test use of doIP message
 #	udspl = '5001'
