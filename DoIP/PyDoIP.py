@@ -7,8 +7,8 @@ import time
 ##DoIP Header Structure : <protocol version><inverse protocol version><payload type><payloadlength><payload>
 ##Payload format : <local ecu address> <optional: target ecu addres> <optional message ><ASRBISO><ASRBOEM>
 
-PROTOCOL_VERSION = 							'02'
-INVERSE_PROTOCOL_VERSION = 					'FD'
+PROTOCOL_VERSION = DOIP_PV =						'02'
+INVERSE_PROTOCOL_VERSION = DOIP_IPV = 			'FD'
 
 ##Payload type definitions##
 DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE = DOIP_NARP = '0000'
@@ -38,7 +38,7 @@ DOIP_ENTITY_STATUS_RESPONSE = 				'4002'
 DOIP_DIAGNOSTIC_POWER_MODE_INFO_REQUEST = 	'4003'
 DOIP_DIAGNOSTIC_POWER_MODE_INFO_RESPONSE = 	'4004'
 #0x4005-0x8000 Reserved by ISO13400
-DOIP_DIAGNOSTIC_MESSAGE = 					'8001'
+DOIP_DIAGNOSTIC_MESSAGE = DOIP_UDS = 		'8001'
 DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE = 		'8002'
 DOIP_DIAGNOSTIC_NEGATIVE_ACKNOWLEDGE = 		'8003'
 #0x8004-0xEFFF Reserved by ISO13400
@@ -78,13 +78,14 @@ class DoIP_Client:
 		self.targetECUAddr = None
 		self.isTCPConnected = False
 		self.isRoutingActivated = False
+		self.isVerbose = False
 
 		try:
 			self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
-			return 0
+			return None
 		except socket.error as err:
 			print "Socket creation failed with error %s" %(err)
 			self.TCP_Socket = None
@@ -157,12 +158,14 @@ class DoIP_Client:
 				payloadLength = "%.8X" % (len(payload)/2) ##divide by 2 because 2 nibbles per byte
 				activationString = DoIPHeader + payloadLength + payload		
 				print "Requesting routing activation"
-				print "TCP SEND ::"
-				activationMessage = DoIPMsg(activationString)
+				if self.isVerbose:
+					print "TCP SEND ::"
+				activationMessage = DoIPMsg(activationString,self.isVerbose)
 				self.TCP_Socket.send(activationString.decode("hex"))
 				activationResponse = (binascii.hexlify(self.TCP_Socket.recv(2048))).upper()
-				print "TCP RECV ::"
-				DoIPResponse = DoIPMsg(activationResponse)
+				if self.isVerbose:
+					print "TCP RECV ::"
+				DoIPResponse = DoIPMsg(activationResponse,self.isVerbose)
 				if DoIPResponse.payload == '10':
 					self.isRoutingActivated = True;
 					self.targetECUAddr = DoIPResponse.targetAddress
@@ -188,8 +191,9 @@ class DoIP_Client:
 				payload = self.localECUAddr + self.targetECUAddr + message #no ASRBISO
 				payloadLength = "%.8X" % (len(payload)/2)
 				UDSString = DoIPHeader + payloadLength + payload
-				print "TCP SEND ::"
-				DoIPTransmit = DoIPMsg(UDSString)
+				if self.isVerbose:
+					print "TCP SEND ::"
+				DoIPTransmit = DoIPMsg(UDSString,self.isVerbose)
 				self.TCP_Socket.send(UDSString.decode("hex"))
 				return 0
 			except socket.error as err:
@@ -199,18 +203,35 @@ class DoIP_Client:
 	def DoIPUDSRecv(self):	
 		if self.isTCPConnected:
 			try:
-				print "TCP RECV ::"
-				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper())
-				time.sleep(.05) # wait for ACK to be sent
+				if self.isVerbose:
+					print "TCP RECV ::"
+				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper(),self.isVerbose)
+				#time.sleep(.001) # wait for ACK to be sent
 
-				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE:
+				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or DoIPResponse.payload == PyUDS.MOPNDNG:
 					DoIPResponse = self.DoIPUDSRecv()
 					return DoIPResponse
-				else:
-					return -2
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
 				return -1
+				
+	def DoIPReadDID(self,DID):
+		self.DoIPUDSSend(PyUDS.RDBI+DID)
+		
+		
+	def DoIPWriteDID(self,DID,msg):
+		self.DoIPUDSSend(PyUDS.WDBI+DID+msg)
+
+	def DoIPEraseMemory(self, componentID):
+		self.DoIPUDSSend('3101FF00'+str(componentID))
+		
+	def DoIPRequestDownload(self,,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
+		self.DoIPUDSSend(PyUDS.RD+dataFormatID+addrLenFormatID+memAddr+memSize)
+	
+		
+	def SetVerbosity(self, verbose):
+		self.isVerbose = verbose
+	
 	def	Terminate(self):
 		print "Closing DoIP Client ..."
 		self.TCP_Socket.close()
@@ -220,7 +241,7 @@ class DoIP_Client:
 		self.Terminate
      
 class DoIPMsg: 
-	def __init__(self,message = None):
+	def __init__(self,message = None, verbose = False):
 		if not message:
 			self.messageString = None
 			self.protcolVersion = self.inverseProtocolVersion = None
@@ -228,7 +249,6 @@ class DoIPMsg:
 			self.sourceAddress = self.targetAddress = None
 			self.isUDS = False
 		else:		
-			print str(message)
 			self.messageString = message
 			self.protcolVersion =  message[0:2]
 			self.inverseProtocolVersion = message[2:4]
@@ -246,7 +266,9 @@ class DoIPMsg:
 			else:
 				self.payload = message[24:len(message)-len(ASRBISO)]
 				self.isUDS = False
-			self.PrintMessage()
+			if verbose:
+				print str(message)
+				self.PrintMessage()
 			
 	def PrintMessage(self):
 		print "Protocol Version 		: " + str(self.protcolVersion)
@@ -262,43 +284,122 @@ class DoIPMsg:
 	def DecodePayloadType(self,payloadType):
 		return payloadTypeDescription.get(int(payloadType), "Invalid or unregistered diagnostic payload type")
 			
-def DoIP_Flash_Hex():
+def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 	
 	#start a DoIP client
-	flashingClient = DoIP_Client()
 	
-	if flashingClient == 0:
-		
+	flashingClient = DoIP_Client()
+	flashingClient.SetVerbosity(verbose)
+	
+	if flashingClient:
+	
+		flashingClient.ConnectToDoIPServer()
 		print "Switching to programming diagnostic session" 
-		iHub.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
-		
-		if iHub.DoIPUDSRecv() != -1 and iHub.DoIPUDSRecv() != -2: #if no negative acknowledge or socket error 
-			iHub.DisconnectFromDoIPServer()
-			iHub.DisconnectFromDoIPServer()
+		flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
+		doipRespone = flashingClient.DoIPUDSRecv()
+		if doipRespone != -1 and doipRespone != -2: #if no negative acknowledge or socket error 
+			flashingClient.DisconnectFromDoIPServer()
 			time.sleep(1)
-			iHub.ConnectToDoIPServer()
+			flashingClient.ConnectToDoIPServer()
 			
-			#initial seed key exchange 
+			##### initial seed key exchange ######
+			
+			#Read DIDS
+			print "Reading old tester finger print"
+			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
+			doipRespone = flashingClient.DoIPUDSRecv()
+			
+			print "Writing new tester finger print"
+			#we will need to replace the first line with the date
+			flashingClient.DoIPWriteDID(PyUDS.DID_WRFPRNT,'180727'+\
+                                        '484F4E472D2D4849'+\
+                                        '4C2D544553542D54'+\
+                                        '45414D0304050607'+\
+                                        '08090A0B0C0D0E0F'+\
+                                        '0001020304050607'+\
+                                        '5858585858585858')
+			doipRespone = flashingClient.DoIPUDSRecv()
+			
+			print "Verifying new tester finger print"
+			#compare with the date here
+			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
+			doipRespone = flashingClient.DoIPUDSRecv()
+			
+			#read and store old BL SW ID 
+			#to-do: decipher and store relevant info
+			print "Reading Bootloader SW ID"
+			flashingClient.DoIPReadDID(PyUDS.DID_BOOTSID)
+			doipRespone = flashingClient.DoIPUDSRecv()
+			
+			#read and store old APP and CAL SW ID
+			##to-do: decipher and store relevant info
+			print "Reading Application and Calibration SW ID"
+			flashingClient.DoIPReadDID(PyUDS.DID_APCASID)
+			doipRespone = flashingClient.DoIPUDSRecv()
+			
+			
+			#Erase component memory for target component
+			print "Erasing memory for component ID 0"
+			flashingClient.DoIPEraseMemory(componentID);
+			doipRespone = flashingClient.DoIPUDSRecv()
+			
+			from intelhex import IntelHex
+			ih = IntelHex()
+			ih.loadhex('BGW_BL_AB.hex')
+			
+			minAddr = ih.minaddr()
+			maxAddr = ih.maxaddr()
+			memSize = maxAddr - minAddr
+			
+			minAddrStr = "%.8X" % minAddr
+			maxAddrStr = "%.8X" % maxAddr
+			memSizeStr = "%.8X" % memSize
+			print "Start Address: " + minAddrStr + " (%.10d)" % minAddr
+			print "End Address:   " + maxAddrStr + " (%.10d)" % maxAddr
+			print "Total Memory:  " + memSizeStr + " (%.10d)" % memSize
+			
+			#request download here. Set maxBlockByteCount to valu from request download
+			flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr)
+			maxBlockByteCount = 512
+			blockByteCount = 0
+			
+			#read in data from hex file	
+			hexDataStr = ''
+			hexDataList = []
+			for address in range(minAddr,maxAddr+1):
+				#print '%.8X\t%.2X' % (address,ih[address])
+				hexDataStr = hexDataStr + '%.2X' % ih[address]
+				blockByteCount+=1
+				if blockByteCount == maxBlockByteCount:
+					hexDataList.append(hexDataStr)
+					hexDataStr = ''
+					blockByteCount = 0
+			hexDataList.append(hexDataStr)
+			
+			print 'Block size(bytes): 		%d'% (len(hexDataList))
+			print 'Final block size(bytes):	%d'% (len(hexDataList[0])/2)
+			print 'Total Blocks sent:		%d'% (len(hexDataList[len(hexDataList)-1])/2)
+
+			
+			
 			
 		else:
+			print ret
 			print "Error while switching to programming diagnostic session. Exiting flash sequence"
 	else : 
 		print "Error while creating flash client. Unable to initiate flash sequence"
 
-        
+def main():
+	print "Main"
+		
+		
 if __name__ == '__main__':
-	iHub = DoIP_Client()
-	iHub.ConnectToDoIPServer()
-	iHub.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS) # change diagnostic sessions to programming session
-	iHub.DoIPUDSRecv()
-	iHub.DisconnectFromDoIPServer()
-	time.sleep(1)
-	iHub.ConnectToDoIPServer()
-	iHub.DoIPUDSSend('2EF195'+\
-		'00'+'0102030405060708'+\
-		'01'+'0102030405060708'+\
-		'02'+'0102030405060708'+\
-		'03'+'0102030405060708'+\
-		'04'+'0102030405060708')
-	iHub.DoIPUDSRecv()
-	iHub.DisconnectFromDoIPServer()
+	main()
+	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = True)
+
+#	Test use of doIP message
+#	udspl = '5001'
+#	plLen = '%.8X'%len(udspl)
+#	srcAddr = '1111'
+#	trgtAddr = '2004'
+#	DoIPMsg(DOIP_PV+DOIP_IPV+DOIP_UDS+plLen+udspl+srcAddr+trgtAddr+'5001',verbose = True)
