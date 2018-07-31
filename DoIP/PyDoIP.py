@@ -82,6 +82,7 @@ class DoIP_Client:
 
 		try:
 			self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self.TCP_Socket.settimeout(5.0)
 			self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
@@ -169,7 +170,7 @@ class DoIP_Client:
 				if DoIPResponse.payload == '10':
 					self.isRoutingActivated = True;
 					self.targetECUAddr = DoIPResponse.targetAddress
-					print "Routing activated with ECU:%s\n" %(self.targetECUAddr)
+					print "Routing activated with ECU: %s\n" %(self.targetECUAddr)
 				else:
 					self.isRoutingActivated = False;
 					print "Unable to activate routing"
@@ -207,9 +208,10 @@ class DoIP_Client:
 					print "TCP RECV ::"
 				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper(),self.isVerbose)
 
+				#check for positive ack, memory operation pending, or transfer operation pending
 				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
-				DoIPResponse.payload == PyUDS.MOPNDNG or\ #memory operation pending
-				DoIPResponse.payload == PyUDS.TOPNDNG: #transfer data operation pending
+				DoIPResponse.payload == PyUDS.MOPNDNG or\
+				DoIPResponse.payload == PyUDS.TOPNDNG:
 					DoIPResponse = self.DoIPUDSRecv()
 				return DoIPResponse
 			except socket.error as err:
@@ -224,9 +226,19 @@ class DoIP_Client:
 		self.DoIPUDSSend(PyUDS.WDBI+DID+msg)
 
 	def DoIPEraseMemory(self, componentID):
-		self.DoIPUDSSend('3101FF00'+str(componentID))
+		if type(componentID) == 'int':	
+			componentID = '%.2X'%(0xFF&componentID)		
+		print "Erasing memory for component ID: %s...\n" % componentID 
+		self.DoIPUDSSend(PyUDS.RC+PyUDS.STR+PyUDS.RC_EM+str(componentID))#### TO DO: CHANGE VALUE TO VARAIBLE
+		
+	def DoIPCheckMemory(self,componentID,CRCLen = '00', CRC = '00'):
+		print "Checking memory...\n"
+		if type(componentID) == 'int':
+			componentID = '%.2X'%(0xFF&componentID)
+		self.DoIPUDSSend(PyUDS.RC+PyUDS.STR+PyUDS.RC_CM+str(componentID)+CRCLen+CRC)
 		
 	def DoIPRequestDownload(self,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
+		print "Requesting download data...\n"
 		self.DoIPUDSSend(PyUDS.RD+dataFormatID+addrLenFormatID+memAddr+memSize)
 		dlMsg = self.DoIPUDSRecv()
 		dlLenFormatID = int(dlMsg.payload[2],16)#number of bytes 
@@ -235,8 +247,10 @@ class DoIP_Client:
 	def DoIPTransferData(self,blockIndex,data):
 		self.DoIPUDSSend(PyUDS.TD + blockIndex + data)
 		
-	def DoIPTransferExit(self):
-		
+	def DoIPRequestTransferExit(self):
+		print "Requesting transfer exit..."
+		self.DoIPUDSSend(PyUDS.RTE)
+	
 	def SetVerbosity(self, verbose):
 		self.isVerbose = verbose
 	
@@ -295,6 +309,11 @@ class DoIPMsg:
 			
 def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 	
+	#get necessary dependencies
+	import progressbar
+
+	print 'Flashing ' + ihexFP + ' to component ID : ' + componentID + '\n'
+	
 	#start a DoIP client
 	
 	flashingClient = DoIP_Client()
@@ -342,19 +361,20 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 			
 			#read and store old APP and CAL SW ID
 			##to-do: decipher and store relevant info
-			print "Reading Application and Calibration SW ID"
+			print "Reading Application and Calibration SW ID \n"
 			flashingClient.DoIPReadDID(PyUDS.DID_APCASID)
 			doipRespone = flashingClient.DoIPUDSRecv()
 			
 			
 			#Erase component memory for target component
-			print "Erasing memory for component ID 0"
 			flashingClient.DoIPEraseMemory(componentID);
 			doipRespone = flashingClient.DoIPUDSRecv()
 			
+			
+			print "Loading hex file: " + ihexFP
 			from intelhex import IntelHex
 			ih = IntelHex()
-			ih.loadhex('BGW_BL_AB.hex')
+			ih.loadhex(ihexFP)
 			
 			minAddr = ih.minaddr()
 			maxAddr = ih.maxaddr()
@@ -363,12 +383,11 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 			minAddrStr = "%.8X" % minAddr
 			maxAddrStr = "%.8X" % maxAddr
 			memSizeStr = "%.8X" % memSize
-			print "Start Address: " + minAddrStr + " (%.10d)" % minAddr
-			print "End Address:   " + maxAddrStr + " (%.10d)" % maxAddr
-			print "Total Memory:  " + memSizeStr + " (%.10d)" % memSize
+			print "\tStart Address: " + minAddrStr + " (%.10d)" % minAddr
+			print "\tEnd Address:   " + maxAddrStr + " (%.10d)" % maxAddr
+			print "\tTotal Memory:  " + memSizeStr + " (%.10d)\n" % memSize
 			
 			#request download here. Set maxBlockByteCount to valu from request download
-			flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr)
 			maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr) - 2 #subtract 2 for SID and index
 			blockByteCount = 0
 			
@@ -384,23 +403,61 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 					hexDataStr = ''
 					blockByteCount = 0
 			hexDataList.append(hexDataStr)
-
 			blockIndex = 1
+			
+			#turn off verbosity, less you be spammed!
+			if flashingClient.isVerbose:
+				flashingClient.SetVerbosity(False)
+
+			print "Transfering Data -- Max block size(bytes): %.4X (%d)" % (maxBlockByteCount,maxBlockByteCount)		
+			#start download progress bar
+			bar = progressbar.ProgressBar(maxval=len(hexDataList), \
+				widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+			bar.start()			
+			bar.update(blockIndex)
+			t_Start = time.time()
+			
+			#begin transferring data
 			for block in hexDataList: 
 				blockIndexStr = '%.2X' % (blockIndex&0xFF)
 				flashingClient.DoIPTransferData(blockIndexStr,block)
 				flashingClient.DoIPUDSRecv()
-				print blockIndex
+				bar.update(blockIndex)
 				blockIndex+=1
+
+			bar.finish()
+			t_Finish = time.time()
+			t_Download = t_Finish-t_Start
+			hr = float(t_Download)/3600
+			min = (float(t_Download)/60) - (hr*60)
+			sec = float(t_Download) - min*60
+			print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
 			
+			flashingClient.DoIPRequestTransferExit()
+			flashingClient.DoIPUDSRecv()
 			
 			print 'Total Blocks sent: 		%d'% (len(hexDataList))
 			print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
 			print 'Final block size(bytes):	%d'% (len(hexDataList[len(hexDataList)-1])/2)
+			print '\n'
 
+			if verbose:
+				flashingClient.SetVerbosity(True)
 			
+			flashingClient.DoIPCheckMemory(componentID)
+			flashingClient.DoIPUDSRecv()
 			
+			#check for pass
+			#if pass, then authorize application
 			
+			print "Switching to default diagnostic session"
+			print "Warning :: ECU will reset" 
+			flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
+			doipRespone = flashingClient.DoIPUDSRecv()
+			
+			flashingClient.DisconnectFromDoIPServer()
+			time.sleep(2)
+							
 		else:
 			print ret
 			print "Error while switching to programming diagnostic session. Exiting flash sequence"
@@ -413,7 +470,8 @@ def main():
 		
 if __name__ == '__main__':
 	main()
-	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = True)
+	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False)
+#	DoIP_Flash_Hex('02','BGW_App_GAMMA_F-00000159.hex',verbose = False)
 
 #	Test use of doIP message
 #	udspl = '5001'
