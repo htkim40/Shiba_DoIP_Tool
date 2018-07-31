@@ -429,7 +429,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 			t_Finish = time.time()
 			t_Download = int(t_Finish-t_Start)
 			hr = t_Download/3600
-			min = t_Download)/60 - hr*60
+			min = t_Download/60 - hr*60
 			sec = t_Download - hr*3600 - min*60
 			print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
 			flashingClient.DoIPRequestTransferExit()
