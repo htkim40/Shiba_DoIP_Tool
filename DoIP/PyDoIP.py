@@ -92,6 +92,7 @@ class DoIP_Client:
 			self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)#allows different sockets to reuse ipaddress 
 
 			self.TCP_Socket.settimeout(5.0)
+			#self.TCP_Socket.setblocking(1)
 			self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 			return None
@@ -115,6 +116,7 @@ class DoIP_Client:
 					self.TCP_Socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)#immediately send to wire wout delay
 					self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 					self.TCP_Socket.settimeout(5.0)
+					#self.TCP_Socket.setblocking(1)
 					self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 					print "Socket successfully created: Binded to %s:%d\n" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 				except socket.error as err:
