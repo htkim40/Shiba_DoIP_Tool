@@ -65,13 +65,13 @@ payloadTypeDescription = {
 	int(DOIP_DIAGNOSTIC_NEGATIVE_ACKNOWLEDGE):		"Diagnostic negative acknowledge",		
 }
 			
-			
+
 defaultTargetIPAddr = '172.26.200.101'
 defaultTargetECUAddr = '2004'
 			
 
 class DoIP_Client:
-	def __init__(self,address = defaultTargetIPAddr,port = 0, ECUAddr = '1111'):
+	def __init__(self,address = '172.26.200.15',port = 0, ECUAddr = '1111'):
 		#init tcp socket
 		self.localIPAddr = address 
 		self.localPort = port
@@ -87,8 +87,10 @@ class DoIP_Client:
 
 		try:
 			self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			#self.TCP_Socket.setsockopt(socket.IPPROTO_TCP, 12, 1)#supposedly, 12 is TCP_QUICKACK option id
 			self.TCP_Socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)#immediately send to wire wout delay
 			self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)#allows different sockets to reuse ipaddress 
+
 			self.TCP_Socket.settimeout(5.0)
 			self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
@@ -109,6 +111,7 @@ class DoIP_Client:
 				print "Warning :: Socket was recently closed but no new socket was created.\nCreating new socket with last available IP address and Port"
 				try:
 					self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+					#self.TCP_Socket.setsockopt(socket.IPPROTO_TCP, 12, 1)#supposedly, 12 is TCP_QUICKACK option id
 					self.TCP_Socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)#immediately send to wire wout delay
 					self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 					self.TCP_Socket.settimeout(5.0)
@@ -211,7 +214,7 @@ class DoIP_Client:
 				print "Unable to send UDS Message to ECU:%d. Socket failed with error %s" % (ECUID, err)	
 				return -1
 				
-	def DoIPUDSRecv(self,rxBufLen = 64):	
+	def DoIPUDSRecv(self,rxBufLen = 256):	
 		if self.isTCPConnected:
 			try:
 				if self.isVerbose:
@@ -219,9 +222,9 @@ class DoIP_Client:
 				self.RxDoIPMsg.UpdateMsg(binascii.hexlify(self.TCP_Socket.recv(rxBufLen)).upper(),self.isVerbose)
 
 				#check for positive ack, memory operation pending, or transfer operation pending
-				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
-				DoIPResponse.payload == PyUDS.MOPNDNG or\
-				DoIPResponse.payload == PyUDS.TOPNDNG:
+				if self.RxDoIPMsg.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
+				self.RxDoIPMsg.payload == PyUDS.MOPNDNG or\
+				self.RxDoIPMsg.payload == PyUDS.TOPNDNG:
 					self.DoIPUDSRecv()
 				return self.RxDoIPMsg
 			except socket.error as err:
@@ -336,8 +339,8 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 		flashingClient.ConnectToDoIPServer()
 		print "Switching to programming diagnostic session" 
 		flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
-		flashingClient.DoIPUDSRecv()
-		if doipRespone != -1 and doipRespone != -2: #if no negative acknowledge or socket error 
+		doipResponse = flashingClient.DoIPUDSRecv()
+		if doipResponse != -1 and doipResponse != -2: #if no negative acknowledge or socket error 
 			flashingClient.DisconnectFromDoIPServer()
 			time.sleep(1)
 			flashingClient.ConnectToDoIPServer()
@@ -434,7 +437,6 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 				blockIndexStr = '%.2X' % (blockIndex&0xFF)
 				flashingClient.DoIPTransferData(blockIndexStr,block)
 				flashingClient.DoIPUDSRecv()
-				bar.update(blockIndex)
 				blockIndex+=1
 
 			bar.finish()
@@ -483,9 +485,9 @@ def main():
 			if argCount == 2:
 				PrintHelp()			
 			elif argCount == 4: #default to bgw
+				hexFP = sys.argv[2]
 				compID = '%.2X'%int(sys.argv[3])
-				print compID
-				#DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False)
+				DoIP_Flash_Hex(compID,hexFP,verbose = False)
 			elif argCount == 6: #new ip, new ecu add
 				print "Flashing ECU with ECU ID: "+sys.argv[5]+' at IP address:'+sys.argv[4]
 			else:
@@ -499,10 +501,12 @@ def main():
 	
 def PrintHelp():
 	print 'Usage for PyDoIP.py: '
-	print 'PyDoIP.py flash [hexfile][component ID] {optional : target IP address} {optional : targetECUAddr}'+ \
+	print 'PyDoIP.py flash [hexfile][component ID] {optional : target IP, target ECUAddr}'+ \
 		'\n\t-componentID: 0 = Bootloader, 1 = Calibration, 2 = Application'+\
-		'\n\tNote: target ECU address should be explicitly set if target IP address is set.'+\
-		'\n\tIf none of the optional arguments are given, default is 172.26.200.101 2004 (BGW)'
+		'\n\tNote: target ECU address should be explicitly'+\
+		'\n\tset if target IP address is set.'+\
+		'\n\tIf none of the optional arguments are given,'+\
+		'\n\tdefault is 172.26.200.101 2004 (BGW)'
 		
 		
 		
