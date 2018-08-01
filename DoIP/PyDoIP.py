@@ -491,7 +491,12 @@ def main():
 				compID = '%.2X'%int(sys.argv[3])
 				DoIP_Flash_Hex(compID,hexFP,verbose = False)
 			elif argCount == 6: #new ip, new ecu add
-				print "Flashing ECU with ECU ID: "+sys.argv[5]+' at IP address:'+sys.argv[4]
+				hexFP = sys.argv[2]
+				compID = '%.2X'%int(sys.argv[3])
+				DoIP_Flash_Hex(compID,hexFP,verbose = False)
+				defaultTargetIPAddr = sys.argv[4]
+				defaultTargetECUAddr = sys.argv[5]
+				#print "Flashing ECU with ECU ID: "+sys.argv[5]+' at IP address:'+sys.argv[4]
 			else:
 				print 'Invalid number of arguments'
 				PrintHelp()
