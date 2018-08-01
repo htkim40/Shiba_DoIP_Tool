@@ -439,6 +439,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 				blockIndexStr = '%.2X' % (blockIndex&0xFF)
 				flashingClient.DoIPTransferData(blockIndexStr,block)
 				flashingClient.DoIPUDSRecv()
+				bar.update(blockIndex)
 				blockIndex+=1
 
 			bar.finish()
