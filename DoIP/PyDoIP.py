@@ -3,6 +3,7 @@ import sys
 import binascii
 import PyUDS
 import time
+import sys
 
 ##DoIP Header Structure : <protocol version><inverse protocol version><payload type><payloadlength><payload>
 ##Payload format : <local ecu address> <optional: target ecu addres> <optional message ><ASRBISO><ASRBOEM>
@@ -46,29 +47,31 @@ DOIP_DIAGNOSTIC_NEGATIVE_ACKNOWLEDGE = 		'8003'
 
 
 payloadTypeDescription = {
-				int(DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE):		 	"Generic negative response",
-				int(DOIP_VEHICLE_ID_REQUEST):					"Vehicle ID request",
-				int(DOIP_VEHICLE_ID_REQUEST_W_EID):				"Vehicle ID request with EID",	
-				int(DOIP_VEHICLE_ID_REQUEST_W_VIN):				"Vehicle ID request with VIN",
-				int(DOIP_VEHICLE_ANNOUNCEMENT_ID_RESPONSE):		"Vehicle announcement ID response",
-				int(DOIP_ROUTING_ACTIVATION_REQUEST):			"Routing activation request",
-				int(DOIP_ROUTING_ACTIVATION_RESPONSE):			"Routing activation response",
-				int(DOIP_ALIVE_CHECK_REQUEST):					"Alive check request",
-				int(DOIP_ALIVE_CHECK_RESPONSE):					"Alive check response",
-				int(DOIP_ENTITY_STATUS_REQUEST):				"Entity status request",
-				int(DOIP_ENTITY_STATUS_RESPONSE):				"Entity status response",
-				int(DOIP_DIAGNOSTIC_POWER_MODE_INFO_REQUEST):	"Diagnostic power mode info request",
-				int(DOIP_DIAGNOSTIC_POWER_MODE_INFO_RESPONSE): 	"Power mode info response",
-				int(DOIP_DIAGNOSTIC_MESSAGE):					"Diagnostic message",
-				int(DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE):		"Diagnostic positive acknowledge",
-				int(DOIP_DIAGNOSTIC_NEGATIVE_ACKNOWLEDGE):		"Diagnostic negative acknowledge",		
-			}
-
-def DoIP_Pack():
-    print "DoIP Pack"
+	int(DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE):		 	"Generic negative response",
+	int(DOIP_VEHICLE_ID_REQUEST):					"Vehicle ID request",
+	int(DOIP_VEHICLE_ID_REQUEST_W_EID):				"Vehicle ID request with EID",	
+	int(DOIP_VEHICLE_ID_REQUEST_W_VIN):				"Vehicle ID request with VIN",
+	int(DOIP_VEHICLE_ANNOUNCEMENT_ID_RESPONSE):		"Vehicle announcement ID response",
+	int(DOIP_ROUTING_ACTIVATION_REQUEST):			"Routing activation request",
+	int(DOIP_ROUTING_ACTIVATION_RESPONSE):			"Routing activation response",
+	int(DOIP_ALIVE_CHECK_REQUEST):					"Alive check request",
+	int(DOIP_ALIVE_CHECK_RESPONSE):					"Alive check response",
+	int(DOIP_ENTITY_STATUS_REQUEST):				"Entity status request",
+	int(DOIP_ENTITY_STATUS_RESPONSE):				"Entity status response",
+	int(DOIP_DIAGNOSTIC_POWER_MODE_INFO_REQUEST):	"Diagnostic power mode info request",
+	int(DOIP_DIAGNOSTIC_POWER_MODE_INFO_RESPONSE): 	"Power mode info response",
+	int(DOIP_DIAGNOSTIC_MESSAGE):					"Diagnostic message",
+	int(DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE):		"Diagnostic positive acknowledge",
+	int(DOIP_DIAGNOSTIC_NEGATIVE_ACKNOWLEDGE):		"Diagnostic negative acknowledge",		
+}
+			
+			
+defaultTargetIPAddr = '172.26.200.101'
+defaultTargetECUAddr = '2004'
+			
 
 class DoIP_Client:
-	def __init__(self,address = '172.26.200.15',port = 0, ECUAddr = '1111'):
+	def __init__(self,address = defaultTargetIPAddr,port = 0, ECUAddr = '1111'):
 		#init tcp socket
 		self.localIPAddr = address 
 		self.localPort = port
@@ -84,8 +87,9 @@ class DoIP_Client:
 
 		try:
 			self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self.TCP_Socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)#immediately send to wire wout delay
+			self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)#allows different sockets to reuse ipaddress 
 			self.TCP_Socket.settimeout(5.0)
-			self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 			return None
@@ -97,7 +101,7 @@ class DoIP_Client:
 	def __enter__(self):
 		return self
 				
-	def ConnectToDoIPServer(self, address = '172.26.200.101', port = 13400,  routingActivation = True, targetECUAddr = '2004'):
+	def ConnectToDoIPServer(self, address = defaultTargetIPAddr, port = 13400,  routingActivation = True, targetECUAddr = defaultTargetECUAddr):
 		if self.isTCPConnected:
 			print "Error :: Already connected to a server. Close the connection before starting a new one\n"
 		else:
@@ -107,6 +111,7 @@ class DoIP_Client:
 					self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 					self.TCP_Socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)#immediately send to wire wout delay
 					self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+					self.TCP_Socket.settimeout(5.0)
 					self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 					print "Socket successfully created: Binded to %s:%d\n" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 				except socket.error as err:
@@ -217,8 +222,8 @@ class DoIP_Client:
 				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
 				DoIPResponse.payload == PyUDS.MOPNDNG or\
 				DoIPResponse.payload == PyUDS.TOPNDNG:
-					DoIPResponse = self.DoIPUDSRecv()
-				return DoIPResponse
+					self.DoIPUDSRecv()
+				return self.RxDoIPMsg
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
 				return -1
@@ -245,9 +250,9 @@ class DoIP_Client:
 	def DoIPRequestDownload(self,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
 		print "Requesting download data...\n"
 		self.DoIPUDSSend(PyUDS.RD+dataFormatID+addrLenFormatID+memAddr+memSize)
-		dlMsg = self.DoIPUDSRecv()
-		dlLenFormatID = int(dlMsg.payload[2],16)#number of bytes 
-		return int(dlMsg.payload[4:(2*dlLenFormatID+4)],16)
+		self.DoIPUDSRecv()
+		dlLenFormatID = int(self.RxDoIPMsg.payload[2],16)#number of bytes 
+		return int(self.RxDoIPMsg.payload[4:(2*dlLenFormatID+4)],16)
 		
 	def DoIPTransferData(self,blockIndex,data):
 		self.DoIPUDSSend(PyUDS.TD + blockIndex + data)
@@ -314,7 +319,7 @@ class DoIPMsg:
 	def DecodePayloadType(self,payloadType):
 		return payloadTypeDescription.get(int(payloadType), "Invalid or unregistered diagnostic payload type")
 			
-def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
+def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = False):
 	
 	#get necessary dependencies
 	import progressbar
@@ -459,7 +464,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 			print "Switching to default diagnostic session"
 			print "Warning :: ECU will reset" 
 			flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
-			doipRespone = flashingClient.DoIPUDSRecv()
+			flashingClient.DoIPUDSRecv()
 			
 			flashingClient.DisconnectFromDoIPServer()
 			time.sleep(2)
@@ -471,19 +476,45 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 		print "Error while creating flash client. Unable to initiate flash sequence"
 
 def main():
-	print "Main"
+	argCount = len(sys.argv)
+	if argCount > 1:
+		#we have action
+		if sys.argv[1] == 'flash':
+			if argCount == 2:
+				PrintHelp()			
+			elif argCount == 4: #default to bgw
+				compID = '%.2X'%int(sys.argv[3])
+				print compID
+				#DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False)
+			elif argCount == 6: #new ip, new ecu add
+				print "Flashing ECU with ECU ID: "+sys.argv[5]+' at IP address:'+sys.argv[4]
+			else:
+				print 'Invalid number of arguments'
+				PrintHelp()
+		else:
+			print 'Invalid argument' 
+			PrintHelp()
+	else:
+		PrintHelp()
+	
+def PrintHelp():
+	print 'Usage for PyDoIP.py: '
+	print 'PyDoIP.py flash [hexfile][component ID] {optional : target IP address} {optional : targetECUAddr}'+ \
+		'\n\t-componentID: 0 = Bootloader, 1 = Calibration, 2 = Application'+\
+		'\n\tNote: target ECU address should be explicitly set if target IP address is set.'+\
+		'\n\tIf none of the optional arguments are given, default is 172.26.200.101 2004 (BGW)'
+		
 		
 		
 if __name__ == '__main__':
 	main()
 #	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False)
 #	DoIP_Flash_Hex('02','BGW_App_GAMMA_F-00000159.hex',verbose = False)
-
 #	Test use of doIP message
-	udspl = '5001'
-	plLen = '%.8X'%len(udspl)
-	srcAddr = '1111'
-	trgtAddr = '2004'
-	testMsg = DoIPMsg(DOIP_PV+DOIP_IPV+DOIP_UDS+plLen+udspl+srcAddr+trgtAddr+'5001',verbose = True)
-	if testMsg.payloadType == DOIP_DIAGNOSTIC_MESSAGE:
-		print "UDS Msg"
+#	udspl = '5001'
+#	plLen = '%.8X'%len(udspl)
+#	srcAddr = '1111'
+#	trgtAddr = '2004'
+#	testMsg = DoIPMsg(DOIP_PV+DOIP_IPV+DOIP_UDS+plLen+udspl+srcAddr+trgtAddr+'5001',verbose = True)	
+	
+	
