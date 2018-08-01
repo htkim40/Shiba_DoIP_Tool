@@ -7,7 +7,7 @@ import time
 ##DoIP Header Structure : <protocol version><inverse protocol version><payload type><payloadlength><payload>
 ##Payload format : <local ecu address> <optional: target ecu addres> <optional message ><ASRBISO><ASRBOEM>
 
-PROTOCOL_VERSION = DOIP_PV =						'02'
+PROTOCOL_VERSION = DOIP_PV =					'02'
 INVERSE_PROTOCOL_VERSION = DOIP_IPV = 			'FD'
 
 ##Payload type definitions##
@@ -79,6 +79,8 @@ class DoIP_Client:
 		self.isTCPConnected = False
 		self.isRoutingActivated = False
 		self.isVerbose = False
+		self.TxDoIPMsg = DoIPMsg();
+		self.RxDoIPMsg = DoIPMsg();
 
 		try:
 			self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -103,6 +105,7 @@ class DoIP_Client:
 				print "Warning :: Socket was recently closed but no new socket was created.\nCreating new socket with last available IP address and Port"
 				try:
 					self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+					self.TCP_Socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)#immediately send to wire wout delay
 					self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 					self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 					print "Socket successfully created: Binded to %s:%d\n" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
@@ -158,10 +161,11 @@ class DoIP_Client:
 				payload = localECUAddr + activationType + ASRBISO + ASRBOEM
 				payloadLength = "%.8X" % (len(payload)/2) ##divide by 2 because 2 nibbles per byte
 				activationString = DoIPHeader + payloadLength + payload		
+				self.TxDoIPMsg.UpdateMsg(activationString,self.isVerbose)
 				print "Requesting routing activation"
 				if self.isVerbose:
 					print "TCP SEND ::"
-				activationMessage = DoIPMsg(activationString,self.isVerbose)
+					self.TxDoIPMsg.PrintMessage()
 				self.TCP_Socket.send(activationString.decode("hex"))
 				activationResponse = (binascii.hexlify(self.TCP_Socket.recv(2048))).upper()
 				if self.isVerbose:
@@ -192,21 +196,22 @@ class DoIP_Client:
 				payload = self.localECUAddr + self.targetECUAddr + message #no ASRBISO
 				payloadLength = "%.8X" % (len(payload)/2)
 				UDSString = DoIPHeader + payloadLength + payload
+				self.TxDoIPMsg.UpdateMsg(UDSString)
 				if self.isVerbose:
 					print "TCP SEND ::"
-				DoIPTransmit = DoIPMsg(UDSString,self.isVerbose)
+					self.TxDoIPMsg.PrintMessage()
 				self.TCP_Socket.send(UDSString.decode("hex"))
 				return 0
 			except socket.error as err:
 				print "Unable to send UDS Message to ECU:%d. Socket failed with error %s" % (ECUID, err)	
 				return -1
 				
-	def DoIPUDSRecv(self):	
+	def DoIPUDSRecv(self,rxBufLen = 64):	
 		if self.isTCPConnected:
 			try:
 				if self.isVerbose:
 					print "TCP RECV ::"
-				DoIPResponse = DoIPMsg((binascii.hexlify(self.TCP_Socket.recv(2048))).upper(),self.isVerbose)
+				self.RxDoIPMsg.UpdateMsg(binascii.hexlify(self.TCP_Socket.recv(rxBufLen)).upper(),self.isVerbose)
 
 				#check for positive ack, memory operation pending, or transfer operation pending
 				if DoIPResponse.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
@@ -264,6 +269,9 @@ class DoIP_Client:
      
 class DoIPMsg: 
 	def __init__(self,message = None, verbose = False):
+		self.UpdateMsg(message,verbose)
+
+	def UpdateMsg(self,message = None, verbose = False):
 		if not message:
 			self.messageString = None
 			self.protcolVersion = self.inverseProtocolVersion = None
@@ -278,12 +286,12 @@ class DoIPMsg:
 			self.payloadType = message[4:8]
 			self.payloadLength = message[8:16]
 			self.sourceAddress = message[16:20]
-			if self.DecodePayloadType(self.payloadType) == "Routing activation request":
+			if self.payloadType == DOIP_ROUTING_ACTIVATION_REQUEST:
 				self.targetAddress = None
 			else:
 				self.targetAddress = message[20:24]
 			
-			if self.DecodePayloadType(self.payloadType) == "Diagnostic message":
+			if self.payloadType == DOIP_DIAGNOSTIC_MESSAGE:
 				self.isUDS = True
 				self.payload = message[24:len(message)]
 			else:
@@ -292,7 +300,6 @@ class DoIPMsg:
 			if verbose:
 				print str(message)
 				self.PrintMessage()
-			
 	def PrintMessage(self):
 		print "Protocol Version 		: " + str(self.protcolVersion)
 		print "Inv. Protocol Version 		: " + str(self.inverseProtocolVersion)
@@ -324,7 +331,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 		flashingClient.ConnectToDoIPServer()
 		print "Switching to programming diagnostic session" 
 		flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
-		doipRespone = flashingClient.DoIPUDSRecv()
+		flashingClient.DoIPUDSRecv()
 		if doipRespone != -1 and doipRespone != -2: #if no negative acknowledge or socket error 
 			flashingClient.DisconnectFromDoIPServer()
 			time.sleep(1)
@@ -335,7 +342,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
 			#Read DIDS
 			print "Reading old tester finger print"
 			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
-			doipRespone = flashingClient.DoIPUDSRecv()
+			flashingClient.DoIPUDSRecv()
 			
 			print "Writing new tester finger print"
 			#we will need to replace the first line with the date
@@ -346,29 +353,29 @@ def DoIP_Flash_Hex(componentID, ihexFP, verbose = False):
                                         '08090A0B0C0D0E0F'+\
                                         '0001020304050607'+\
                                         '5858585858585858')
-			doipRespone = flashingClient.DoIPUDSRecv()
+			flashingClient.DoIPUDSRecv()
 			
 			print "Verifying new tester finger print"
 			#compare with the date here
 			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
-			doipRespone = flashingClient.DoIPUDSRecv()
+			flashingClient.DoIPUDSRecv()
 			
 			#read and store old BL SW ID 
 			#to-do: decipher and store relevant info
 			print "Reading Bootloader SW ID"
 			flashingClient.DoIPReadDID(PyUDS.DID_BOOTSID)
-			doipRespone = flashingClient.DoIPUDSRecv()
+			flashingClient.DoIPUDSRecv()
 			
 			#read and store old APP and CAL SW ID
 			##to-do: decipher and store relevant info
 			print "Reading Application and Calibration SW ID \n"
 			flashingClient.DoIPReadDID(PyUDS.DID_APCASID)
-			doipRespone = flashingClient.DoIPUDSRecv()
+			flashingClient.DoIPUDSRecv()
 			
 			
 			#Erase component memory for target component
 			flashingClient.DoIPEraseMemory(componentID);
-			doipRespone = flashingClient.DoIPUDSRecv()
+			flashingClient.DoIPUDSRecv()
 			
 			
 			print "Loading hex file: " + ihexFP
@@ -469,12 +476,14 @@ def main():
 		
 if __name__ == '__main__':
 	main()
-	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False)
+#	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False)
 #	DoIP_Flash_Hex('02','BGW_App_GAMMA_F-00000159.hex',verbose = False)
 
 #	Test use of doIP message
-#	udspl = '5001'
-#	plLen = '%.8X'%len(udspl)
-#	srcAddr = '1111'
-#	trgtAddr = '2004'
-#	DoIPMsg(DOIP_PV+DOIP_IPV+DOIP_UDS+plLen+udspl+srcAddr+trgtAddr+'5001',verbose = True)
+	udspl = '5001'
+	plLen = '%.8X'%len(udspl)
+	srcAddr = '1111'
+	trgtAddr = '2004'
+	testMsg = DoIPMsg(DOIP_PV+DOIP_IPV+DOIP_UDS+plLen+udspl+srcAddr+trgtAddr+'5001',verbose = True)
+	if testMsg.payloadType == DOIP_DIAGNOSTIC_MESSAGE:
+		print "UDS Msg"
