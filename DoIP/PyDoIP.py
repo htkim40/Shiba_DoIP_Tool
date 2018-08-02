@@ -337,146 +337,161 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 	flashingClient.SetVerbosity(verbose)
 	
 	if flashingClient:
-	
+		
 		flashingClient.ConnectToDoIPServer()
-		print "Switching to programming diagnostic session" 
-		flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
-		doipResponse = flashingClient.DoIPUDSRecv()
-		if doipResponse != -1 and doipResponse != -2: #if no negative acknowledge or socket error 
-			flashingClient.DisconnectFromDoIPServer()
-			time.sleep(1)
-			flashingClient.ConnectToDoIPServer()
+		
+		if flashingClient.isTCPConnected and flashingClient.isRoutingActivated:
+		
+			print "Switching to programming diagnostic session" 
+			flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
+			ret = flashingClient.DoIPUDSRecv()
 			
-			##### initial seed key exchange ######
+			if ret != -1 and ret != -2: #if no negative acknowledge or socket error 
 			
-			#Read DIDS
-			print "Reading old tester finger print"
-			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
-			flashingClient.DoIPUDSRecv()
-			
-			print "Writing new tester finger print"
-			#we will need to replace the first line with the date
-			flashingClient.DoIPWriteDID(PyUDS.DID_WRFPRNT,'180727'+\
-                                        '484F4E472D2D4849'+\
-                                        '4C2D544553542D54'+\
-                                        '45414D0304050607'+\
-                                        '08090A0B0C0D0E0F'+\
-                                        '0001020304050607'+\
-                                        '5858585858585858')
-			flashingClient.DoIPUDSRecv()
-			
-			print "Verifying new tester finger print"
-			#compare with the date here
-			flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
-			flashingClient.DoIPUDSRecv()
-			
-			#read and store old BL SW ID 
-			#to-do: decipher and store relevant info
-			print "Reading Bootloader SW ID"
-			flashingClient.DoIPReadDID(PyUDS.DID_BOOTSID)
-			flashingClient.DoIPUDSRecv()
-			
-			#read and store old APP and CAL SW ID
-			##to-do: decipher and store relevant info
-			print "Reading Application and Calibration SW ID \n"
-			flashingClient.DoIPReadDID(PyUDS.DID_APCASID)
-			flashingClient.DoIPUDSRecv()
-			
-			
-			#Erase component memory for target component
-			flashingClient.DoIPEraseMemory(componentID);
-			flashingClient.DoIPUDSRecv()
-			
-			
-			print "Loading hex file: " + ihexFP
-			from intelhex import IntelHex
-			ih = IntelHex()
-			ih.loadhex(ihexFP)
-			
-			minAddr = ih.minaddr()
-			maxAddr = ih.maxaddr()
-			memSize = maxAddr - minAddr
-			
-			minAddrStr = "%.8X" % minAddr
-			maxAddrStr = "%.8X" % maxAddr
-			memSizeStr = "%.8X" % memSize
-			print "\tStart Address: " + minAddrStr + " (%.10d)" % minAddr
-			print "\tEnd Address:   " + maxAddrStr + " (%.10d)" % maxAddr
-			print "\tTotal Memory:  " + memSizeStr + " (%.10d)\n" % memSize
-			
-			#request download here. Set maxBlockByteCount to valu from request download
-			maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr) - 2 #subtract 2 for SID and index
-			blockByteCount = 0
-			
-			#read in data from hex file	
-			hexDataStr = ''
-			hexDataList = []
-			for address in range(minAddr,maxAddr+1):
-				#print '%.8X\t%.2X' % (address,ih[address])
-				hexDataStr = hexDataStr + '%.2X' % ih[address]
-				blockByteCount+=1
-				if blockByteCount == maxBlockByteCount:
-					hexDataList.append(hexDataStr)
-					hexDataStr = ''
+				flashingClient.DisconnectFromDoIPServer()
+				time.sleep(1)
+				flashingClient.ConnectToDoIPServer()
+				
+				if flashingClient.isTCPConnected:
+					
+					##### initial seed key exchange ######
+					
+					print "Starting pre-download checks"
+					#Read DIDS
+					print "\tReading old tester finger print"
+					flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
+					flashingClient.DoIPUDSRecv()
+					
+					print "\tWriting new tester finger print"
+					#we will need to replace the first line with the date
+					flashingClient.DoIPWriteDID(PyUDS.DID_WRFPRNT,'180727'+\
+												'484F4E472D2D4849'+\
+												'4C2D544553542D54'+\
+												'45414D0304050607'+\
+												'08090A0B0C0D0E0F'+\
+												'0001020304050607'+\
+												'5858585858585858')
+					flashingClient.DoIPUDSRecv()
+					
+					print "\tVerifying new tester finger print"
+					#compare with the date here
+					flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
+					flashingClient.DoIPUDSRecv()
+					
+					#read and store old BL SW ID 
+					#to-do: decipher and store relevant info
+					print "\tReading Bootloader SW ID"
+					flashingClient.DoIPReadDID(PyUDS.DID_BOOTSID)
+					flashingClient.DoIPUDSRecv()
+					
+					#read and store old APP and CAL SW ID
+					##to-do: decipher and store relevant info
+					print "\tReading Application and Calibration SW ID \n"
+					flashingClient.DoIPReadDID(PyUDS.DID_APCASID)
+					flashingClient.DoIPUDSRecv()
+					
+					print "Pre-download checks complete"
+					
+					#Erase component memory for target component
+					flashingClient.DoIPEraseMemory(componentID);
+					flashingClient.DoIPUDSRecv()
+					
+					
+					print "Loading hex file: " + ihexFP
+					from intelhex import IntelHex
+					ih = IntelHex()
+					ih.loadhex(ihexFP)
+					
+					minAddr = ih.minaddr()
+					maxAddr = ih.maxaddr()
+					memSize = maxAddr - minAddr
+					
+					minAddrStr = "%.8X" % minAddr
+					maxAddrStr = "%.8X" % maxAddr
+					memSizeStr = "%.8X" % memSize
+					print "\tStart Address: " + minAddrStr + " (%.10d)" % minAddr
+					print "\tEnd Address:   " + maxAddrStr + " (%.10d)" % maxAddr
+					print "\tTotal Memory:  " + memSizeStr + " (%.10d)\n" % memSize
+					
+					#request download here. Set maxBlockByteCount to valu from request download
+					maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr) - 2 #subtract 2 for SID and index
 					blockByteCount = 0
-			hexDataList.append(hexDataStr)
-			blockIndex = 1
-			
-			#turn off verbosity, less you be spammed!
-			if flashingClient.isVerbose:
-				flashingClient.SetVerbosity(False)
+					
+					#read in data from hex file	
+					hexDataStr = ''
+					hexDataList = []
+					for address in range(minAddr,maxAddr+1):
+						#print '%.8X\t%.2X' % (address,ih[address])
+						hexDataStr = hexDataStr + '%.2X' % ih[address]
+						blockByteCount+=1
+						if blockByteCount == maxBlockByteCount:
+							hexDataList.append(hexDataStr)
+							hexDataStr = ''
+							blockByteCount = 0
+					hexDataList.append(hexDataStr)
+					blockIndex = 1
+					
+					#turn off verbosity, less you be spammed!
+					if flashingClient.isVerbose:
+						flashingClient.SetVerbosity(False)
 
-			print "Transfering Data -- Max block size(bytes): %.4X (%d)" % (maxBlockByteCount,maxBlockByteCount)		
-			#start download progress bar
-			bar = progressbar.ProgressBar(maxval=len(hexDataList), \
-				widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-			bar.start()			
-			bar.update(blockIndex)
-			t_Start = time.time()
-			
-			#begin transferring data
-			for block in hexDataList: 
-				blockIndexStr = '%.2X' % (blockIndex&0xFF)
-				flashingClient.DoIPTransferData(blockIndexStr,block)
-				flashingClient.DoIPUDSRecv()
-				bar.update(blockIndex)
-				blockIndex+=1
+					print "Transfering Data -- Max block size(bytes): %.4X (%d)" % (maxBlockByteCount,maxBlockByteCount)		
+					#start download progress bar
+					bar = progressbar.ProgressBar(maxval=len(hexDataList), \
+						widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+					bar.start()			
+					bar.update(blockIndex)
+					t_Start = time.time()
+					
+					#begin transferring data
+					for block in hexDataList: 
+						blockIndexStr = '%.2X' % (blockIndex&0xFF)
+						flashingClient.DoIPTransferData(blockIndexStr,block)
+						flashingClient.DoIPUDSRecv()
+						bar.update(blockIndex)
+						blockIndex+=1
 
-			bar.finish()
-			t_Finish = time.time()
-			t_Download = int(t_Finish-t_Start)
-			hr = t_Download/3600
-			min = t_Download/60 - hr*60
-			sec = t_Download - hr*3600 - min*60
-			print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
-			flashingClient.DoIPRequestTransferExit()
-			flashingClient.DoIPUDSRecv()
-			
-			print 'Total Blocks sent: 		%d'% (len(hexDataList))
-			print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
-			print 'Final block size(bytes):	%d'% (len(hexDataList[len(hexDataList)-1])/2)
-			print '\n'
+					bar.finish()
+					t_Finish = time.time()
+					t_Download = int(t_Finish-t_Start)
+					hr = t_Download/3600
+					min = t_Download/60 - hr*60
+					sec = t_Download - hr*3600 - min*60
+					print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
+					flashingClient.DoIPRequestTransferExit()
+					flashingClient.DoIPUDSRecv()
+					
+					print 'Total Blocks sent: 		%d'% (len(hexDataList))
+					print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
+					print 'Final block size(bytes):	%d'% (len(hexDataList[len(hexDataList)-1])/2)
+					print '\n'
 
-			if verbose:
-				flashingClient.SetVerbosity(True)
-			
-			flashingClient.DoIPCheckMemory(componentID)
-			flashingClient.DoIPUDSRecv()
-			
-			#check for pass
-			#if pass, then authorize application
-			
-			print "Switching to default diagnostic session"
-			print "Warning :: ECU will reset" 
-			flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
-			flashingClient.DoIPUDSRecv()
-			
-			flashingClient.DisconnectFromDoIPServer()
-			time.sleep(2)
-							
+					if verbose:
+						flashingClient.SetVerbosity(True)
+					
+					flashingClient.DoIPCheckMemory(componentID)
+					if flashingClient.DoIPUDSRecv() != -1:
+						if flashingClient.RxDoIPMsg.payload[12] == '0':
+							print "Check memory passed. Authorizing software update"
+						else: 
+							print "Check memory failed. Software update is invalid. Exiting out of update sequence"
+					
+					#check for pass
+					#if pass, then authorize application
+					
+					print "Switching to default diagnostic session"
+					print "Warning :: ECU will reset" 
+					flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
+					flashingClient.DoIPUDSRecv()
+					
+					flashingClient.DisconnectFromDoIPServer()
+					time.sleep(2)
+				else:
+					print "Error while reconnecting to ECU and//or activate. Exiting flash sequence"				
+			else:
+				print "Error while switching to programming diagnostic session. Exiting flash sequence"
 		else:
-			print ret
-			print "Error while switching to programming diagnostic session. Exiting flash sequence"
+			print "Error while connect to ECU and//or activate routing. Exiting flash sequence"
 	else : 
 		print "Error while creating flash client. Unable to initiate flash sequence"
 
