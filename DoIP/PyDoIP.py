@@ -516,6 +516,20 @@ def main():
 			else:
 				print 'Invalid number of arguments'
 				PrintHelp()
+		elif sys.argv[1] == 'erase':
+			if argCount == 2:
+				PrintHelp()
+			elif argCount == 3:
+				if int(sys.argv[2])==0 or int(sys.argv[2])==1 or int(sys.argv[2])==2:
+					print "Erasing component ID: " + sys.argv[2];
+					#erase here
+				else:
+					print "Invalid component ID"
+			else:
+				print 'Invalid number of arguments'
+				PrintHelp()
+			
+		
 		else:
 			print 'Invalid argument' 
 			PrintHelp()
@@ -530,6 +544,8 @@ def PrintHelp():
 		'\n\tset if target IP address is set.'+\
 		'\n\tIf none of the optional arguments are given,'+\
 		'\n\tdefault is 172.26.200.101 2004 (BGW)'
+	print 'PyDoIP.py erase [component ID]'+ \
+		'\n\t-componentID: 0 = Bootloader, 1 = Calibration, 2 = Application'
 		
 		
 		
