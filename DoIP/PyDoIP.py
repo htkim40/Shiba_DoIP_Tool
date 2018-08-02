@@ -189,7 +189,7 @@ class DoIP_Client:
 					self.isRoutingActivated = False;
 					print "Unable to activate routing"
 			except socket.error as err:
-				print "Unable to activate routing with ECU:%d. Socket failed with error %s" % (ECUID, err)
+				print "Unable to activate routing with ECU:%d. Socket failed with error %s" % (targetECUAddr, err)
 				self.isRoutingActivated = 0;
 				self.targetECUAddr = None
 		else:
@@ -213,7 +213,7 @@ class DoIP_Client:
 				self.TCP_Socket.send(UDSString.decode("hex"))
 				return 0
 			except socket.error as err:
-				print "Unable to send UDS Message to ECU:%d. Socket failed with error %s" % (ECUID, err)	
+				print "Unable to send UDS Message to ECU:%d. Socket failed with error %s" % (targetECUAddr, err)	
 				return -1
 				
 	def DoIPUDSRecv(self,rxBufLen = 256):	
