@@ -471,7 +471,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 					
 					flashingClient.DoIPCheckMemory(componentID)
 					if flashingClient.DoIPUDSRecv() != -1:
-						if flashingClient.RxDoIPMsg.payload[12] == '0':
+						if flashingClient.RxDoIPMsg.payload[9] == '0':
 							print "Check memory passed. Authorizing software update"
 						else: 
 							print "Check memory failed. Software update is invalid. Exiting out of update sequence"
