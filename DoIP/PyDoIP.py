@@ -324,7 +324,7 @@ class DoIPMsg:
 	def DecodePayloadType(self,payloadType):
 		return payloadTypeDescription.get(int(payloadType), "Invalid or unregistered diagnostic payload type")
 			
-def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = False):
+def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = False, multiSegment = False):
 	
 	#get necessary dependencies
 	import progressbar
@@ -420,15 +420,18 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 					#read in data from hex file	
 					hexDataStr = ''
 					hexDataList = []
-					for address in range(minAddr,maxAddr+1):
-						#print '%.8X\t%.2X' % (address,ih[address])
-						hexDataStr = hexDataStr + '%.2X' % ih[address]
-						blockByteCount+=1
-						if blockByteCount == maxBlockByteCount:
-							hexDataList.append(hexDataStr)
-							hexDataStr = ''
-							blockByteCount = 0
-					hexDataList.append(hexDataStr)
+					if multiSegment:
+						hexDataDict = []
+					else:
+						for address in range(minAddr,maxAddr+1):
+							#print '%.8X\t%.2X' % (address,ih[address])
+							hexDataStr = hexDataStr + '%.2X' % ih[address]
+							blockByteCount+=1
+							if blockByteCount == maxBlockByteCount:
+								hexDataList.append(hexDataStr)
+								hexDataStr = ''
+								blockByteCount = 0
+						hexDataList.append(hexDataStr)
 					blockIndex = 1
 					
 					#turn off verbosity, less you be spammed!
@@ -506,6 +509,11 @@ def main():
 				hexFP = sys.argv[2]
 				compID = '%.2X'%int(sys.argv[3])
 				DoIP_Flash_Hex(compID,hexFP,verbose = False)
+				
+			elif argCount == 5: #default to bgw -- multiple block download
+				hexFP = sys.argv[2]
+				compID = '%.2X'%int(sys.argv[3])
+				DoIP_Flash_Hex(compID,hexFP,verbose = False)
 			elif argCount == 6: #new ip, new ecu add
 				hexFP = sys.argv[2]
 				compID = '%.2X'%int(sys.argv[3])
@@ -513,6 +521,7 @@ def main():
 				defaultTargetIPAddr = sys.argv[4]
 				defaultTargetECUAddr = sys.argv[5]
 				#print "Flashing ECU with ECU ID: "+sys.argv[5]+' at IP address:'+sys.argv[4]
+				
 			else:
 				print 'Invalid number of arguments'
 				PrintHelp()
@@ -538,14 +547,18 @@ def main():
 	
 def PrintHelp():
 	print 'Usage for PyDoIP.py: '
-	print 'PyDoIP.py flash [hexfile][component ID] {optional : target IP, target ECUAddr}'+ \
-		'\n\t-componentID: 0 = Bootloader, 1 = Calibration, 2 = Application'+\
+	print 'PyDoIP.py flash [hexfile][component ID]{optional: target IP, target ECUAddr}'+ \
+		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: -multiSegment}'+ \
+		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: target IP, target ECUAddr}'+ \
+		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: target IP, target ECUAddr, multiSegment}'+ \
+		'\n\n\t:: ComponentID: 0 = Bootloader, 1 = Calibration, 2 = Application'+\
+		'\n\t:: IP: XXX.XXX.XXX.XXX, i.e. 172.026.200.101'+\
 		'\n\tNote: target ECU address should be explicitly'+\
 		'\n\tset if target IP address is set.'+\
 		'\n\tIf none of the optional arguments are given,'+\
-		'\n\tdefault is 172.26.200.101 2004 (BGW)'
+		'\n\tdefault is 172.26.200.101 2004 (BGW)\n'
 	print 'PyDoIP.py erase [component ID]'+ \
-		'\n\t-componentID: 0 = Bootloader, 1 = Calibration, 2 = Application'
+		'\n\n\t::componentID: 0 = Bootloader, 1 = Calibration, 2 = Application'
 		
 		
 		
