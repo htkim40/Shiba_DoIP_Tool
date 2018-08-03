@@ -438,10 +438,9 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 							maxAddr = ih.maxaddr()
 							segments = [(ih.minaddr(),ih.maxaddr())]
 						
-						for (minAddr,maxAddr) in segments: 
-						
+						for (minAddr,maxAddr) in segments: 						
 							memSize = maxAddr - minAddr
-							
+
 							minAddrStr = "%.8X" % minAddr
 							maxAddrStr = "%.8X" % maxAddr
 							memSizeStr = "%.8X" % memSize
@@ -499,20 +498,18 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 							bar.finish()
 							if not downloadErr: 
 								flashingClient.DoIPRequestTransferExit()
-								if flashingClient.DoIPUDSRecv() == 0: 							
-									
-									
+								
+								if flashingClient.DoIPUDSRecv() == 0: 																
 									t_Finish = time.time()
 									t_Download = int(t_Finish-t_Start)
 									hr = t_Download/3600
 									min = t_Download/60 - hr*60
 									sec = t_Download - hr*3600 - min*60
 									print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
-																
 									print 'Total Blocks sent: 		%d'% (len(hexDataList))
 									print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
-									print 'Final block size(bytes):	%d'% (len(hexDataList[len(hexDataList)-1])/2)
-									print '\n'
+									print 'Final block size(bytes):	%d\n'% (len(hexDataList[len(hexDataList)-1])/2)
+									
 								else: 
 									print "Request transfer exit failure. Exiting out of flash sequence"
 									downloadErr = True
