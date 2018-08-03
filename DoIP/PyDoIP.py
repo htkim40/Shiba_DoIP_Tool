@@ -97,7 +97,7 @@ class DoIP_Client:
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 			return None
 		except socket.error as err:
-			print "Socket creation failed with error %s" %(err)
+			print "Socket creation failed with error: %s" %(err)
 			self.TCP_Socket = None
 			return err
 			
@@ -215,6 +215,9 @@ class DoIP_Client:
 			except socket.error as err:
 				print "Unable to send UDS Message to ECU:%d. Socket failed with error %s" % (targetECUAddr, err)	
 				return -1
+		else:
+			print "Not currently connected to a server"
+			return -3
 				
 	def DoIPUDSRecv(self,rxBufLen = 256):	
 		if self.isTCPConnected:
@@ -227,14 +230,18 @@ class DoIP_Client:
 				if self.RxDoIPMsg.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
 				self.RxDoIPMsg.payload == PyUDS.MOPNDNG or\
 				self.RxDoIPMsg.payload == PyUDS.TOPNDNG:
-					self.DoIPUDSRecv()
-				elif self.RxDoIPMsg.payloadTpe == DOIP_DIAGNOSTIC_NEGATIVE_ACKNOWLEDGE or\
-				self.RxDoIPMsg.payload == DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE:
+					return self.DoIPUDSRecv()
+				elif self.RxDoIPMsg.payloadType == DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE:
 					return -2
-				return self.RxDoIPMsg
+				else: 
+					return 0
+>>>>>>> DoIPDev
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
 				return -1
+		else:
+			print "Not currently connected to a server"
+			return -3
 				
 	def DoIPReadDID(self,DID):
 		self.DoIPUDSSend(PyUDS.RDBI+DID)
@@ -246,20 +253,23 @@ class DoIP_Client:
 	def DoIPEraseMemory(self, componentID):
 		if type(componentID) == 'int':	
 			componentID = '%.2X'%(0xFF&componentID)		
-		print "Erasing memory for component ID: %s...\n" % componentID 
+		print "Erasing memory for component ID: %s..." % componentID 
 		self.DoIPUDSSend(PyUDS.RC+PyUDS.STR+PyUDS.RC_EM+str(componentID))#### TO DO: CHANGE VALUE TO VARAIBLE
 		
 	def DoIPCheckMemory(self,componentID,CRCLen = '00', CRC = '00'):
-		print "Checking memory...\n"
+		print "Checking memory..."
 		if type(componentID) == 'int':
 			componentID = '%.2X'%(0xFF&componentID)
 		self.DoIPUDSSend(PyUDS.RC+PyUDS.STR+PyUDS.RC_CM+str(componentID)+CRCLen+CRC)
 		
 	def DoIPRequestDownload(self,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
-		print "Requesting download data...\n"
+		print "Requesting download data..."
 		self.DoIPUDSSend(PyUDS.RD+dataFormatID+addrLenFormatID+memAddr+memSize)
-		self.DoIPUDSRecv()
-		dlLenFormatID = int(self.RxDoIPMsg.payload[2],16)#number of bytes 
+		if(self.DoIPUDSRecv() == 0):
+			print "Request download data success\n"
+			dlLenFormatID = int(self.RxDoIPMsg.payload[2],16)#number of bytes 
+		else:
+			return -1
 		return int(self.RxDoIPMsg.payload[4:(2*dlLenFormatID+4)],16)
 		
 	def DoIPTransferData(self,blockIndex,data):
@@ -339,18 +349,18 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 	flashingClient = DoIP_Client()
 	flashingClient.SetVerbosity(verbose)
 	
+	
 	if flashingClient:
-		
+		downloadErr = False
 		flashingClient.ConnectToDoIPServer()
 		
 		if flashingClient.isTCPConnected and flashingClient.isRoutingActivated:
 		
 			print "Switching to programming diagnostic session" 
 			flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
-			ret = flashingClient.DoIPUDSRecv()
 			
-			if ret != -1 and ret != -2: #if no negative acknowledge or socket error 
-			
+			if flashingClient.DoIPUDSRecv() == 0: #if no negative acknowledge or socket error 
+				print "Successfully switched to programming diagnostic session\n"
 				flashingClient.DisconnectFromDoIPServer()
 				time.sleep(1)
 				flashingClient.ConnectToDoIPServer()
@@ -359,155 +369,205 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 					
 					##### initial seed key exchange ######
 					
+					#read DIDs
 					print "Starting pre-download checks"
-					#Read DIDS
 					print "\tReading old tester finger print"
 					flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
-					flashingClient.DoIPUDSRecv()
 					
-					print "\tWriting new tester finger print"
-					#we will need to replace the first line with the date
-					flashingClient.DoIPWriteDID(PyUDS.DID_WRFPRNT,'180727'+\
-												'484F4E472D2D4849'+\
-												'4C2D544553542D54'+\
-												'45414D0304050607'+\
-												'08090A0B0C0D0E0F'+\
-												'0001020304050607'+\
-												'5858585858585858')
-					flashingClient.DoIPUDSRecv()
+					if(flashingClient.DoIPUDSRecv()==0):
+						print "\tRead success"
+						print "\tWriting new tester finger print"
+						#we will need to replace the first line with the date
+						flashingClient.DoIPWriteDID(PyUDS.DID_WRFPRNT,'180727'+\
+													'484F4E472D2D4849'+\
+													'4C2D544553542D54'+\
+													'45414D0304050607'+\
+													'08090A0B0C0D0E0F'+\
+													'0001020304050607'+\
+													'5858585858585858')
+						if(flashingClient.DoIPUDSRecv()==0):
+							print "\tWrite success"
+							print "\tVerifying new tester finger print"
+							#compare with the date here
+							flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
+							if(flashingClient.DoIPUDSRecv()==0):
+								#read and store old BL SW ID 
+								#to-do: decipher and store relevant info
+								print "\tRead success"
+								print "\tReading Bootloader SW ID"
+								flashingClient.DoIPReadDID(PyUDS.DID_BOOTSID)
+								if(flashingClient.DoIPUDSRecv()==0):
+									
+									#read and store old APP and CAL SW ID
+									##to-do: decipher and store relevant info
+									print "\tRead success"
+									print "\tReading Application and Calibration SW ID"
+									flashingClient.DoIPReadDID(PyUDS.DID_APCASID)
+									if(flashingClient.DoIPUDSRecv()==0):
+										print "\tRead success"
+										print "Pre-download checks complete\n"
+										
+										#Erase component memory for target component
+										flashingClient.DoIPEraseMemory(componentID);
+										if(flashingClient.DoIPUDSRecv()==0):
+											print "Erase memory success\n"
+										else:
+											downloadErr = True
+									else:
+										downloadErr = True
+								else:
+									downloadErr = True
+							else:
+								downloadErr = True
+						else:
+							downloadErr = True
+					else:
+						downloadErr = True
 					
-					print "\tVerifying new tester finger print"
-					#compare with the date here
-					flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
-					flashingClient.DoIPUDSRecv()
-					
-					#read and store old BL SW ID 
-					#to-do: decipher and store relevant info
-					print "\tReading Bootloader SW ID"
-					flashingClient.DoIPReadDID(PyUDS.DID_BOOTSID)
-					flashingClient.DoIPUDSRecv()
-					
-					#read and store old APP and CAL SW ID
-					##to-do: decipher and store relevant info
-					print "\tReading Application and Calibration SW ID \n"
-					flashingClient.DoIPReadDID(PyUDS.DID_APCASID)
-					flashingClient.DoIPUDSRecv()
-					
-					print "Pre-download checks complete"
-					
-					#Erase component memory for target component
-					flashingClient.DoIPEraseMemory(componentID);
-					flashingClient.DoIPUDSRecv()
-					
-					
-					print "Loading hex file: " + ihexFP
-					from intelhex import IntelHex
-					ih = IntelHex()
-					ih.loadhex(ihexFP)
-					
-					if multiSegment:
-						print "Downloading in multiple segments..."
-						segments = ih.segments()
-					else
-						print "Downloading in a single filled segment..."
-						minAddr = ih.minaddr()
-						maxAddr = ih.maxaddr()
-						segments = (ih.minaddr(),ih.maxaddr())
-					
-					for (minAddr,maxAddr) in segments: 
-					
-						memSize = maxAddr - minAddr
+					if not downloadErr:
+						print "Loading hex file: " + ihexFP
+						from intelhex import IntelHex
+						ih = IntelHex()
+						ih.loadhex(ihexFP)
 						
-						minAddrStr = "%.8X" % minAddr
-						maxAddrStr = "%.8X" % maxAddr
-						memSizeStr = "%.8X" % memSize
-						print "\tStart Address: " + minAddrStr + " (%.10d)" % minAddr
-						print "\tEnd Address:   " + maxAddrStr + " (%.10d)" % maxAddr
-						print "\tTotal Memory:  " + memSizeStr + " (%.10d)\n" % memSize
+						if multiSegment:
+							print "Downloading in multiple segments..."
+							segments = ih.segments()
+						else:
+							print "Downloading in a single filled segment..."
+							minAddr = ih.minaddr()
+							maxAddr = ih.maxaddr()
+							segments = [(ih.minaddr(),ih.maxaddr())]
 						
-						#request download here. Set maxBlockByteCount to valu from request download
-						maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr) - 2 #subtract 2 for SID and index
-						blockByteCount = 0
-						
-						for address in range(minAddr,maxAddr+1):
-							#print '%.8X\t%.2X' % (address,ih[address])
-							hexDataStr = hexDataStr + '%.2X' % ih[address]
-							blockByteCount+=1
-							if blockByteCount == maxBlockByteCount:
-								hexDataList.append(hexDataStr)
-								hexDataStr = ''
-								blockByteCount = 0
-						hexDataList.append(hexDataStr)
-						blockIndex = 1
-						
-						#turn off verbosity, less you be spammed!
-						if flashingClient.isVerbose:
-							flashingClient.SetVerbosity(False)
+						for (minAddr,maxAddr) in segments: 						
+							memSize = maxAddr - minAddr
 
-						print "Transfering Data -- Max block size(bytes): %.4X (%d)" % (maxBlockByteCount,maxBlockByteCount)		
-						#start download progress bar
-						bar = progressbar.ProgressBar(maxval=len(hexDataList), \
-							widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-						bar.start()			
-						bar.update(blockIndex)
-						t_Start = time.time()
-						
-						#begin transferring data
-						for block in hexDataList: 
-							blockIndexStr = '%.2X' % (blockIndex&0xFF)
-							flashingClient.DoIPTransferData(blockIndexStr,block)
-							flashingClient.DoIPUDSRecv()
+							minAddrStr = "%.8X" % minAddr
+							maxAddrStr = "%.8X" % maxAddr
+							memSizeStr = "%.8X" % memSize
+							print "\tStart Address: " + minAddrStr + " (%.10d)" % minAddr
+							print "\tEnd Address:   " + maxAddrStr + " (%.10d)" % maxAddr
+							print "\tTotal Memory:  " + memSizeStr + " (%.10d)\n" % memSize
+							
+							#request download here. Set maxBlockByteCount to valu from request download
+							maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr)
+							if maxBlockByteCount >= 2:
+								maxBlockByteCount -= 2 #subtract 2 for SID and index
+							else:
+								print "Error while requesting download data. Exiting out of flash sequencing"
+								downloadErr = True
+								break;
+							
+							blockByteCount = 0
+							hexDataStr = ''
+							hexDataList = []
+							
+							for address in range(minAddr,maxAddr+1):
+								#print '%.8X\t%.2X' % (address,ih[address])
+								hexDataStr = hexDataStr + '%.2X' % ih[address]
+								blockByteCount+=1
+								if blockByteCount == maxBlockByteCount:
+									hexDataList.append(hexDataStr)
+									hexDataStr = ''
+									blockByteCount = 0
+							hexDataList.append(hexDataStr)
+							blockIndex = 1
+							
+							#turn off verbosity, less you be spammed!
+							if flashingClient.isVerbose:
+								flashingClient.SetVerbosity(False)
+
+							print "Transfering Data -- Max block size(bytes): %.4X (%d)" % (maxBlockByteCount,maxBlockByteCount)		
+							
+							#start download progress bar
+							bar = progressbar.ProgressBar(maxval=len(hexDataList), \
+								widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+							bar.start()			
 							bar.update(blockIndex)
-							blockIndex+=1
-
-						bar.finish()
-						t_Finish = time.time()
-						t_Download = int(t_Finish-t_Start)
-						hr = t_Download/3600
-						min = t_Download/60 - hr*60
-						sec = t_Download - hr*3600 - min*60
-						print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
-						flashingClient.DoIPRequestTransferExit()
-						flashingClient.DoIPUDSRecv()
+							
+							t_Start = time.time()
+							
+							#begin transferring data
+							for block in hexDataList: 
+								blockIndexStr = '%.2X' % (blockIndex&0xFF)
+								flashingClient.DoIPTransferData(blockIndexStr,block)
+								if flashingClient.DoIPUDSRecv()!=0: 
+									downloadErr= True
+									break
+								bar.update(blockIndex)
+								blockIndex+=1
+							bar.finish()
+							if not downloadErr: 
+								flashingClient.DoIPRequestTransferExit()
+								
+								if flashingClient.DoIPUDSRecv() == 0: 																
+									t_Finish = time.time()
+									t_Download = int(t_Finish-t_Start)
+									hr = t_Download/3600
+									min = t_Download/60 - hr*60
+									sec = t_Download - hr*3600 - min*60
+									print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
+									print 'Total Blocks sent: 		%d'% (len(hexDataList))
+									print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
+									print 'Final block size(bytes):	%d\n'% (len(hexDataList[len(hexDataList)-1])/2)
+									
+								else: 
+									print "Request transfer exit failure. Exiting out of flash sequence"
+									downloadErr = True
+									break
+							else:
+								print "Transfer data failure. Exiting out of flash sequence"
+								downloadErr = True
+								break
+						#reset verbosity
+						if verbose:
+							flashingClient.SetVerbosity(True)
 						
-						print 'Total Blocks sent: 		%d'% (len(hexDataList))
-						print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
-						print 'Final block size(bytes):	%d'% (len(hexDataList[len(hexDataList)-1])/2)
-						print '\n'
+						if not downloadErr:
+							#request check memory
+							flashingClient.DoIPCheckMemory(componentID)
+							if flashingClient.DoIPUDSRecv() == 0:						
+								if flashingClient.RxDoIPMsg.payload[9] == '0':
+									print "Check memory passed. Authorizing software update\n"
+								else: 
+									print "Check memory failed. Software update is invalid. Exiting out of update sequence\n"
+							
+								#check for pass
 
-					if verbose:
-						flashingClient.SetVerbosity(True)
-					
-					flashingClient.DoIPCheckMemory(componentID)
-					if flashingClient.DoIPUDSRecv() != -1:
-						if flashingClient.RxDoIPMsg.payload[9] == '0':
-							print "Check memory passed. Authorizing software update"
-						else: 
-							print "Check memory failed. Software update is invalid. Exiting out of update sequence"
-					
-					#check for pass
-					#if pass, then authorize application
-					
-					print "Switching to default diagnostic session"
-					print "Warning :: ECU will reset" 
-					flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
-					flashingClient.DoIPUDSRecv()
-					
-					flashingClient.DisconnectFromDoIPServer()
-					time.sleep(2)
+								#if pass, then authorize application . to do: application authorization
+								
+								print "Switching to default diagnostic session"
+								print "\tWarning :: ECU will reset" 
+								flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
+								
+								if(flashingClient.DoIPUDSRecv()	== 0):
+									print "Successfully switched to default diagnostic session\n"
+									print "Software update success!!\n"
+							else:	
+								print "Error while checking memory. Exiting out of flash sequence."
+						else:
+							print "You got so close! But alas, my code is either not very good, or something happened in the release\n"
+						
+						#disconnect from the server gracefully please
+						flashingClient.DisconnectFromDoIPServer()
+						time.sleep(2)
+					else:
+						print "Error while performing pre-programming procedure. Exiting flash sequence."
 				else:
-					print "Error while reconnecting to ECU and//or activate. Exiting flash sequence"				
+					print "Error while reconnecting to ECU and//or activate. Exiting flash sequence."
 			else:
-				print "Error while switching to programming diagnostic session. Exiting flash sequence"
+				print "Error while switching to programming diagnostic session. Exiting flash sequence."
 		else:
-			print "Error while connect to ECU and//or activate routing. Exiting flash sequence"
+			print "Error while connect to ECU and//or activate routing. Exiting flash sequence."
 	else : 
-		print "Error while creating flash client. Unable to initiate flash sequence"
+		print "Error while creating flash client. Unable to initiate flash sequence."
 
 def DoIP	
 		
 		
 def main():
+
+	#This is terrible implementation...don't know how to parse out arguments that aren't in order. :( 
 	argCount = len(sys.argv)
 	if argCount > 1:
 		#we have action
@@ -517,16 +577,22 @@ def main():
 			elif argCount == 4: #default to bgw
 				hexFP = sys.argv[2]
 				compID = '%.2X'%int(sys.argv[3])
-				DoIP_Flash_Hex(compID,hexFP,verbose = False)
-				
+				DoIP_Flash_Hex(compID,hexFP,verbose = False)				
 			elif argCount == 5: #default to bgw -- multiple block download
 				hexFP = sys.argv[2]
 				compID = '%.2X'%int(sys.argv[3])
-				DoIP_Flash_Hex(compID,hexFP,verbose = False)
+				DoIP_Flash_Hex(compID,hexFP,verbose = False, multiSegment = True)
 			elif argCount == 6: #new ip, new ecu add
 				hexFP = sys.argv[2]
 				compID = '%.2X'%int(sys.argv[3])
 				DoIP_Flash_Hex(compID,hexFP,verbose = False)
+				defaultTargetIPAddr = sys.argv[4]
+				defaultTargetECUAddr = sys.argv[5]
+				#print "Flashing ECU with ECU ID: "+sys.argv[5]+' at IP address:'+sys.argv[4]
+			elif argCount == 7: #new ip, new ecu add
+				hexFP = sys.argv[2]
+				compID = '%.2X'%int(sys.argv[3])
+				DoIP_Flash_Hex(compID,hexFP,verbose = False, multiSegment = True)
 				defaultTargetIPAddr = sys.argv[4]
 				defaultTargetECUAddr = sys.argv[5]
 				#print "Flashing ECU with ECU ID: "+sys.argv[5]+' at IP address:'+sys.argv[4]
@@ -557,7 +623,7 @@ def main():
 def PrintHelp():
 	print 'Usage for PyDoIP.py: '
 	print 'PyDoIP.py flash [hexfile][component ID]{optional: target IP, target ECUAddr}'+ \
-		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: -multiSegment}'+ \
+		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: multiSegment}'+ \
 		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: target IP, target ECUAddr}'+ \
 		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: target IP, target ECUAddr, multiSegment}'+ \
 		'\n\n\t:: ComponentID: 0 = Bootloader, 1 = Calibration, 2 = Application'+\
