@@ -405,7 +405,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 					if multiSegment:
 						print "Downloading in multiple segments..."
 						segments = ih.segments()
-					else
+					else:
 						print "Downloading in a single filled segment..."
 						minAddr = ih.minaddr()
 						maxAddr = ih.maxaddr()
@@ -502,6 +502,8 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 		print "Error while creating flash client. Unable to initiate flash sequence"
 
 def main():
+
+	#This is terrible implementation...don't know how to parse out arguments that aren't in order. :( 
 	argCount = len(sys.argv)
 	if argCount > 1:
 		#we have action
@@ -511,16 +513,22 @@ def main():
 			elif argCount == 4: #default to bgw
 				hexFP = sys.argv[2]
 				compID = '%.2X'%int(sys.argv[3])
-				DoIP_Flash_Hex(compID,hexFP,verbose = False)
-				
+				DoIP_Flash_Hex(compID,hexFP,verbose = False)				
 			elif argCount == 5: #default to bgw -- multiple block download
 				hexFP = sys.argv[2]
 				compID = '%.2X'%int(sys.argv[3])
-				DoIP_Flash_Hex(compID,hexFP,verbose = False)
+				DoIP_Flash_Hex(compID,hexFP,verbose = False, multiSegment = True)
 			elif argCount == 6: #new ip, new ecu add
 				hexFP = sys.argv[2]
 				compID = '%.2X'%int(sys.argv[3])
 				DoIP_Flash_Hex(compID,hexFP,verbose = False)
+				defaultTargetIPAddr = sys.argv[4]
+				defaultTargetECUAddr = sys.argv[5]
+				#print "Flashing ECU with ECU ID: "+sys.argv[5]+' at IP address:'+sys.argv[4]
+			elif argCount == 7: #new ip, new ecu add
+				hexFP = sys.argv[2]
+				compID = '%.2X'%int(sys.argv[3])
+				DoIP_Flash_Hex(compID,hexFP,verbose = False, multiSegment = True)
 				defaultTargetIPAddr = sys.argv[4]
 				defaultTargetECUAddr = sys.argv[5]
 				#print "Flashing ECU with ECU ID: "+sys.argv[5]+' at IP address:'+sys.argv[4]
@@ -551,7 +559,7 @@ def main():
 def PrintHelp():
 	print 'Usage for PyDoIP.py: '
 	print 'PyDoIP.py flash [hexfile][component ID]{optional: target IP, target ECUAddr}'+ \
-		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: -multiSegment}'+ \
+		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: multiSegment}'+ \
 		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: target IP, target ECUAddr}'+ \
 		'\n\nPyDoIP.py flash [hexfile][component ID]{optional: target IP, target ECUAddr, multiSegment}'+ \
 		'\n\n\t:: ComponentID: 0 = Bootloader, 1 = Calibration, 2 = Application'+\
