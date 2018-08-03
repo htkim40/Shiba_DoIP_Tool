@@ -228,6 +228,9 @@ class DoIP_Client:
 				self.RxDoIPMsg.payload == PyUDS.MOPNDNG or\
 				self.RxDoIPMsg.payload == PyUDS.TOPNDNG:
 					self.DoIPUDSRecv()
+				elif self.RxDoIPMsg.payloadTpe == DOIP_DIAGNOSTIC_NEGATIVE_ACKNOWLEDGE or\
+				self.RxDoIPMsg.payload == DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE:
+					return -2
 				return self.RxDoIPMsg
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
@@ -501,6 +504,9 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 	else : 
 		print "Error while creating flash client. Unable to initiate flash sequence"
 
+def DoIP	
+		
+		
 def main():
 	argCount = len(sys.argv)
 	if argCount > 1:
