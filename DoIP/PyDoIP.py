@@ -97,7 +97,7 @@ class DoIP_Client:
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 			return None
 		except socket.error as err:
-			print "Socket creation failed with error %s" %(err)
+			print "Socket creation failed with error: %s" %(err)
 			self.TCP_Socket = None
 			return err
 			
@@ -262,7 +262,7 @@ class DoIP_Client:
 		self.DoIPUDSSend(PyUDS.RC+PyUDS.STR+PyUDS.RC_CM+str(componentID)+CRCLen+CRC)
 		
 	def DoIPRequestDownload(self,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
-		print "Requesting download data...\n"
+		print "Requesting download data..."
 		self.DoIPUDSSend(PyUDS.RD+dataFormatID+addrLenFormatID+memAddr+memSize)
 		if(self.DoIPUDSRecv() == 0):
 			print "Request download data success\n"
