@@ -561,8 +561,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 	else : 
 		print "Error while creating flash client. Unable to initiate flash sequence."
 
-def DoIP	
-		
+# def DoIP_Erase_Memory		
 		
 def main():
 
