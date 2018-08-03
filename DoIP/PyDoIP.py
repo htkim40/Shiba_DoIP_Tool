@@ -130,7 +130,7 @@ class DoIP_Client:
 				self.isTCPConnected = True	
 				print "Connection to DoIP established\n"
 			except socket.error as err: 
-				print "Unable to connect to socket at %s:%d. Socket failed with error %s" % (address, port, err)
+				print "Unable to connect to socket at %s:%d. Socket failed with error: %s" % (address, port, err)
 				self.targetIPAddr = None
 				self.targetPort = None
 				self.isTCPConnected = False
@@ -151,7 +151,7 @@ class DoIP_Client:
 				self.isTCPConnected = 0
 				print "Connection successfully shut down\n"
 			except socket.error as err:
-				print "Unable to disconnect from socket at %s:%d. Socket failed with error %s." %(self.targetIPAddr, self.targetPort, err)
+				print "Unable to disconnect from socket at %s:%d. Socket failed with error: %s." %(self.targetIPAddr, self.targetPort, err)
 				print "Warning :: Socket is currently in a metastable state." 
 			finally:
 				self.targetIPAddr = None
@@ -189,7 +189,7 @@ class DoIP_Client:
 					self.isRoutingActivated = False;
 					print "Unable to activate routing"
 			except socket.error as err:
-				print "Unable to activate routing with ECU:%d. Socket failed with error %s" % (targetECUAddr, err)
+				print "Unable to activate routing with ECU:%d. Socket failed with error: %s" % (targetECUAddr, err)
 				self.isRoutingActivated = 0;
 				self.targetECUAddr = None
 		else:
@@ -213,7 +213,7 @@ class DoIP_Client:
 				self.TCP_Socket.send(UDSString.decode("hex"))
 				return 0
 			except socket.error as err:
-				print "Unable to send UDS Message to ECU:%d. Socket failed with error %s" % (targetECUAddr, err)	
+				print "Unable to send UDS Message to ECU:%d. Socket failed with error: %s" % (targetECUAddr, err)	
 				return -1
 		else:
 			print "Not currently connected to a server"
@@ -236,7 +236,7 @@ class DoIP_Client:
 				else: 
 					return 0
 			except socket.error as err:
-				print "Unable to receive UDS message. Socket failed with error %s" %(err)
+				print "Unable to receive UDS message. Socket failed with error: %s" %(err)
 				return -1
 		else:
 			print "Not currently connected to a server"
