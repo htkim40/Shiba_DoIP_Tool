@@ -233,7 +233,7 @@ class DoIP_Client:
 				return self.RxDoIPMsg
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
-					return -1
+				return -1
 				
 	def DoIPReadDID(self,DID):
 		self.DoIPUDSSend(PyUDS.RDBI+DID)
@@ -465,7 +465,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 							blockIndex+=1
 						if transferFail: 
 							print "Transfer data failure. Exiting out of flash sequence"
-							break;
+							break
 						bar.finish()
 						t_Finish = time.time()
 						t_Download = int(t_Finish-t_Start)
@@ -488,14 +488,13 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 					
 					flashingClient.DoIPCheckMemory(componentID)
 					ret = flashingClient.DoIPUDSRecv()
-					if ret == -2 or ret == -2:
+					if ret == -1 or ret == -2:
 						print "Error while checking memory. Exiting out of flash sequence"
-						break;
-						
-					if flashingClient.RxDoIPMsg.payload[9] == '0':
-						print "Check memory passed. Authorizing software update"
-					else: 
-						print "Check memory failed. Software update is invalid. Exiting out of update sequence"
+					else:							
+						if flashingClient.RxDoIPMsg.payload[9] == '0':
+							print "Check memory passed. Authorizing software update"
+						else: 
+							print "Check memory failed. Software update is invalid. Exiting out of update sequence"
 					
 					#check for pass
 					#if pass, then authorize application
