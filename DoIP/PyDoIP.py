@@ -402,27 +402,30 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 					ih = IntelHex()
 					ih.loadhex(ihexFP)
 					
-					minAddr = ih.minaddr()
-					maxAddr = ih.maxaddr()
-					memSize = maxAddr - minAddr
-					
-					minAddrStr = "%.8X" % minAddr
-					maxAddrStr = "%.8X" % maxAddr
-					memSizeStr = "%.8X" % memSize
-					print "\tStart Address: " + minAddrStr + " (%.10d)" % minAddr
-					print "\tEnd Address:   " + maxAddrStr + " (%.10d)" % maxAddr
-					print "\tTotal Memory:  " + memSizeStr + " (%.10d)\n" % memSize
-					
-					#request download here. Set maxBlockByteCount to valu from request download
-					maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr) - 2 #subtract 2 for SID and index
-					blockByteCount = 0
-					
-					#read in data from hex file	
-					hexDataStr = ''
-					hexDataList = []
 					if multiSegment:
-						hexDataDict = []
-					else:
+						print "Downloading in multiple segments..."
+						segments = ih.segments()
+					else
+						print "Downloading in a single filled segment..."
+						minAddr = ih.minaddr()
+						maxAddr = ih.maxaddr()
+						segments = (ih.minaddr(),ih.maxaddr())
+					
+					for (minAddr,maxAddr) in segments: 
+					
+						memSize = maxAddr - minAddr
+						
+						minAddrStr = "%.8X" % minAddr
+						maxAddrStr = "%.8X" % maxAddr
+						memSizeStr = "%.8X" % memSize
+						print "\tStart Address: " + minAddrStr + " (%.10d)" % minAddr
+						print "\tEnd Address:   " + maxAddrStr + " (%.10d)" % maxAddr
+						print "\tTotal Memory:  " + memSizeStr + " (%.10d)\n" % memSize
+						
+						#request download here. Set maxBlockByteCount to valu from request download
+						maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr) - 2 #subtract 2 for SID and index
+						blockByteCount = 0
+						
 						for address in range(minAddr,maxAddr+1):
 							#print '%.8X\t%.2X' % (address,ih[address])
 							hexDataStr = hexDataStr + '%.2X' % ih[address]
@@ -432,42 +435,42 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 								hexDataStr = ''
 								blockByteCount = 0
 						hexDataList.append(hexDataStr)
-					blockIndex = 1
-					
-					#turn off verbosity, less you be spammed!
-					if flashingClient.isVerbose:
-						flashingClient.SetVerbosity(False)
+						blockIndex = 1
+						
+						#turn off verbosity, less you be spammed!
+						if flashingClient.isVerbose:
+							flashingClient.SetVerbosity(False)
 
-					print "Transfering Data -- Max block size(bytes): %.4X (%d)" % (maxBlockByteCount,maxBlockByteCount)		
-					#start download progress bar
-					bar = progressbar.ProgressBar(maxval=len(hexDataList), \
-						widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
-					bar.start()			
-					bar.update(blockIndex)
-					t_Start = time.time()
-					
-					#begin transferring data
-					for block in hexDataList: 
-						blockIndexStr = '%.2X' % (blockIndex&0xFF)
-						flashingClient.DoIPTransferData(blockIndexStr,block)
-						flashingClient.DoIPUDSRecv()
+						print "Transfering Data -- Max block size(bytes): %.4X (%d)" % (maxBlockByteCount,maxBlockByteCount)		
+						#start download progress bar
+						bar = progressbar.ProgressBar(maxval=len(hexDataList), \
+							widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+						bar.start()			
 						bar.update(blockIndex)
-						blockIndex+=1
+						t_Start = time.time()
+						
+						#begin transferring data
+						for block in hexDataList: 
+							blockIndexStr = '%.2X' % (blockIndex&0xFF)
+							flashingClient.DoIPTransferData(blockIndexStr,block)
+							flashingClient.DoIPUDSRecv()
+							bar.update(blockIndex)
+							blockIndex+=1
 
-					bar.finish()
-					t_Finish = time.time()
-					t_Download = int(t_Finish-t_Start)
-					hr = t_Download/3600
-					min = t_Download/60 - hr*60
-					sec = t_Download - hr*3600 - min*60
-					print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
-					flashingClient.DoIPRequestTransferExit()
-					flashingClient.DoIPUDSRecv()
-					
-					print 'Total Blocks sent: 		%d'% (len(hexDataList))
-					print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
-					print 'Final block size(bytes):	%d'% (len(hexDataList[len(hexDataList)-1])/2)
-					print '\n'
+						bar.finish()
+						t_Finish = time.time()
+						t_Download = int(t_Finish-t_Start)
+						hr = t_Download/3600
+						min = t_Download/60 - hr*60
+						sec = t_Download - hr*3600 - min*60
+						print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
+						flashingClient.DoIPRequestTransferExit()
+						flashingClient.DoIPUDSRecv()
+						
+						print 'Total Blocks sent: 		%d'% (len(hexDataList))
+						print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
+						print 'Final block size(bytes):	%d'% (len(hexDataList[len(hexDataList)-1])/2)
+						print '\n'
 
 					if verbose:
 						flashingClient.SetVerbosity(True)
