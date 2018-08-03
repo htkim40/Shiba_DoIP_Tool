@@ -419,7 +419,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						print "Downloading in a single filled segment..."
 						minAddr = ih.minaddr()
 						maxAddr = ih.maxaddr()
-						segments = (ih.minaddr(),ih.maxaddr())
+						segments = [(ih.minaddr(),ih.maxaddr())]
 					
 					for (minAddr,maxAddr) in segments: 
 					
