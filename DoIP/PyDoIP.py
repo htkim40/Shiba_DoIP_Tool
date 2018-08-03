@@ -496,13 +496,13 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						else: 
 							print "Check memory failed. Software update is invalid. Exiting out of update sequence"
 					
-					#check for pass
-					#if pass, then authorize application
-					
-					print "Switching to default diagnostic session"
-					print "Warning :: ECU will reset" 
-					flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
-					flashingClient.DoIPUDSRecv()
+						#check for pass
+						#if pass, then authorize application
+						
+						print "Switching to default diagnostic session"
+						print "Warning :: ECU will reset" 
+						flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
+						flashingClient.DoIPUDSRecv()
 					
 					flashingClient.DisconnectFromDoIPServer()
 					time.sleep(2)
