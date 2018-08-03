@@ -215,6 +215,9 @@ class DoIP_Client:
 			except socket.error as err:
 				print "Unable to send UDS Message to ECU:%d. Socket failed with error %s" % (targetECUAddr, err)	
 				return -1
+		else:
+			print "Not currently connected to a server"
+			return -3
 				
 	def DoIPUDSRecv(self,rxBufLen = 256):	
 		if self.isTCPConnected:
@@ -227,13 +230,17 @@ class DoIP_Client:
 				if self.RxDoIPMsg.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
 				self.RxDoIPMsg.payload == PyUDS.MOPNDNG or\
 				self.RxDoIPMsg.payload == PyUDS.TOPNDNG:
-					self.DoIPUDSRecv()
+					return self.DoIPUDSRecv()
 				elif self.RxDoIPMsg.payloadType == DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE:
 					return -2
-				return self.RxDoIPMsg
+				else: 
+					return 0
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
 				return -1
+		else:
+			print "Not currently connected to a server"
+			return -3
 				
 	def DoIPReadDID(self,DID):
 		self.DoIPUDSSend(PyUDS.RDBI+DID)
@@ -346,9 +353,8 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 		
 			print "Switching to programming diagnostic session" 
 			flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
-			ret = flashingClient.DoIPUDSRecv()
 			
-			if ret != -1 and ret != -2: #if no negative acknowledge or socket error 
+			if flashingClient.DoIPUDSRecv() == 0: #if no negative acknowledge or socket error 
 			
 				flashingClient.DisconnectFromDoIPServer()
 				time.sleep(1)
@@ -474,8 +480,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						sec = t_Download - hr*3600 - min*60
 						print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
 						flashingClient.DoIPRequestTransferExit()
-						ret = flashingClient.DoIPUDSRecv()
-						if ret == -1 or ret == -2: 
+						if flashingClient.DoIPUDSRecv() == 0: 
 							print "Request transfer exit failure. Exiting out of flash sequence"
 						
 						print 'Total Blocks sent: 		%d'% (len(hexDataList))
@@ -487,8 +492,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						flashingClient.SetVerbosity(True)
 					
 					flashingClient.DoIPCheckMemory(componentID)
-					ret = flashingClient.DoIPUDSRecv()
-					if ret == -1 or ret == -2:
+					if flashingClient.DoIPUDSRecv() == 0:
 						print "Error while checking memory. Exiting out of flash sequence"
 					else:							
 						if flashingClient.RxDoIPMsg.payload[9] == '0':
