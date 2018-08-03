@@ -419,7 +419,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						print "Downloading in a single filled segment..."
 						minAddr = ih.minaddr()
 						maxAddr = ih.maxaddr()
-						segments = (ih.minaddr(),ih.maxaddr())
+						segments = [(ih.minaddr(),ih.maxaddr())]
 					
 					for (minAddr,maxAddr) in segments: 
 					
@@ -435,7 +435,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						#request download here. Set maxBlockByteCount to valu from request download
 						maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr)
 						if maxBlockByteCount >= 2:
-						 	maxBlockByteCount- 2 #subtract 2 for SID and index
+						 	maxBlockByteCount -= 2 #subtract 2 for SID and index
 						else:
 							print "Error while requesting download data. Exiting out of flash sequencing"
 							break;
