@@ -235,7 +235,6 @@ class DoIP_Client:
 					return -2
 				else: 
 					return 0
->>>>>>> DoIPDev
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
 				return -1
