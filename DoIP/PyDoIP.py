@@ -264,8 +264,10 @@ class DoIP_Client:
 	def DoIPRequestDownload(self,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
 		print "Requesting download data...\n"
 		self.DoIPUDSSend(PyUDS.RD+dataFormatID+addrLenFormatID+memAddr+memSize)
-		self.DoIPUDSRecv()
-		dlLenFormatID = int(self.RxDoIPMsg.payload[2],16)#number of bytes 
+		if(self.DoIPUDSRecv() == 0):
+			dlLenFormatID = int(self.RxDoIPMsg.payload[2],16)#number of bytes 
+		else:
+			return -1
 		return int(self.RxDoIPMsg.payload[4:(2*dlLenFormatID+4)],16)
 		
 	def DoIPTransferData(self,blockIndex,data):
@@ -431,7 +433,12 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						print "\tTotal Memory:  " + memSizeStr + " (%.10d)\n" % memSize
 						
 						#request download here. Set maxBlockByteCount to valu from request download
-						maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr) - 2 #subtract 2 for SID and index
+						maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr)
+						if maxBlockByteCount >= 2:
+						 	maxBlockByteCount- 2 #subtract 2 for SID and index
+						else:
+							print "Error while requesting download data. Exiting out of flash sequencing"
+							break;
 						blockByteCount = 0
 						hexDataStr = ''
 						hexDataList = []
@@ -463,8 +470,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						for block in hexDataList: 
 							blockIndexStr = '%.2X' % (blockIndex&0xFF)
 							flashingClient.DoIPTransferData(blockIndexStr,block)
-							ret = flashingClient.DoIPUDSRecv()
-							if ret == -1 or ret == -2: 
+							if flashingClient.DoIPUDSRecv()!=0: 
 								transferFail = True
 								break
 							bar.update(blockIndex)
@@ -492,7 +498,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						flashingClient.SetVerbosity(True)
 					
 					flashingClient.DoIPCheckMemory(componentID)
-					if flashingClient.DoIPUDSRecv() == 0:
+					if flashingClient.DoIPUDSRecv() != 0:
 						print "Error while checking memory. Exiting out of flash sequence"
 					else:							
 						if flashingClient.RxDoIPMsg.payload[9] == '0':
