@@ -228,10 +228,12 @@ class DoIP_Client:
 				self.RxDoIPMsg.payload == PyUDS.MOPNDNG or\
 				self.RxDoIPMsg.payload == PyUDS.TOPNDNG:
 					self.DoIPUDSRecv()
+				elif self.RxDoIPMsg.payloadType == DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE:
+					return -2
 				return self.RxDoIPMsg
 			except socket.error as err:
 				print "Unable to receive UDS message. Socket failed with error %s" %(err)
-				return -1
+					return -1
 				
 	def DoIPReadDID(self,DID):
 		self.DoIPUDSSend(PyUDS.RDBI+DID)
@@ -425,6 +427,8 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						#request download here. Set maxBlockByteCount to valu from request download
 						maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr) - 2 #subtract 2 for SID and index
 						blockByteCount = 0
+						hexDataStr = ''
+						hexDataList = []
 						
 						for address in range(minAddr,maxAddr+1):
 							#print '%.8X\t%.2X' % (address,ih[address])
@@ -448,15 +452,20 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						bar.start()			
 						bar.update(blockIndex)
 						t_Start = time.time()
-						
+						transferFail = False
 						#begin transferring data
 						for block in hexDataList: 
 							blockIndexStr = '%.2X' % (blockIndex&0xFF)
 							flashingClient.DoIPTransferData(blockIndexStr,block)
-							flashingClient.DoIPUDSRecv()
+							ret = flashingClient.DoIPUDSRecv()
+							if ret == -1 or ret == -2: 
+								transferFail = True
+								break
 							bar.update(blockIndex)
 							blockIndex+=1
-
+						if transferFail: 
+							print "Transfer data failure. Exiting out of flash sequence"
+							break;
 						bar.finish()
 						t_Finish = time.time()
 						t_Download = int(t_Finish-t_Start)
@@ -465,7 +474,9 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						sec = t_Download - hr*3600 - min*60
 						print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
 						flashingClient.DoIPRequestTransferExit()
-						flashingClient.DoIPUDSRecv()
+						ret = flashingClient.DoIPUDSRecv()
+						if ret == -1 or ret == -2: 
+							print "Request transfer exit failure. Exiting out of flash sequence"
 						
 						print 'Total Blocks sent: 		%d'% (len(hexDataList))
 						print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
@@ -476,11 +487,15 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						flashingClient.SetVerbosity(True)
 					
 					flashingClient.DoIPCheckMemory(componentID)
-					if flashingClient.DoIPUDSRecv() != -1:
-						if flashingClient.RxDoIPMsg.payload[9] == '0':
-							print "Check memory passed. Authorizing software update"
-						else: 
-							print "Check memory failed. Software update is invalid. Exiting out of update sequence"
+					ret = flashingClient.DoIPUDSRecv()
+					if ret == -2 or ret == -2:
+						print "Error while checking memory. Exiting out of flash sequence"
+						break;
+						
+					if flashingClient.RxDoIPMsg.payload[9] == '0':
+						print "Check memory passed. Authorizing software update"
+					else: 
+						print "Check memory failed. Software update is invalid. Exiting out of update sequence"
 					
 					#check for pass
 					#if pass, then authorize application
