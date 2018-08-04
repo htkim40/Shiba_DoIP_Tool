@@ -95,11 +95,13 @@ class DoIP_Client:
 			#self.TCP_Socket.setblocking(1)
 			self.TCP_Socket.bind((self.localIPAddr,self.localPort))
 			print "Socket successfully created: Binded to %s:%d" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
-			return None
+
 		except socket.error as err:
 			print "Socket creation failed with error: %s" %(err)
+			if '[Errno 10049]' in str(err):
+				print "Consider changing your machine's TCP settings so that it has a satic IP of 172.26.200.15"	
 			self.TCP_Socket = None
-			return err
+			
 			
 	def __enter__(self):
 		return self
@@ -244,22 +246,25 @@ class DoIP_Client:
 				
 	def DoIPReadDID(self,DID):
 		self.DoIPUDSSend(PyUDS.RDBI+DID)
-		
+		return self.DoIPUDSRecv()
 		
 	def DoIPWriteDID(self,DID,msg):
 		self.DoIPUDSSend(PyUDS.WDBI+DID+msg)
+		return self.DoIPUDSRecv()
 
 	def DoIPEraseMemory(self, componentID):
 		if type(componentID) == 'int':	
 			componentID = '%.2X'%(0xFF&componentID)		
 		print "Erasing memory for component ID: %s..." % componentID 
 		self.DoIPUDSSend(PyUDS.RC+PyUDS.STR+PyUDS.RC_EM+str(componentID))#### TO DO: CHANGE VALUE TO VARAIBLE
+		return self.DoIPUDSRecv()
 		
 	def DoIPCheckMemory(self,componentID,CRCLen = '00', CRC = '00'):
 		print "Checking memory..."
 		if type(componentID) == 'int':
 			componentID = '%.2X'%(0xFF&componentID)
 		self.DoIPUDSSend(PyUDS.RC+PyUDS.STR+PyUDS.RC_CM+str(componentID)+CRCLen+CRC)
+		return self.DoIPUDSRecv()
 		
 	def DoIPRequestDownload(self,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
 		print "Requesting download data..."
@@ -273,10 +278,12 @@ class DoIP_Client:
 		
 	def DoIPTransferData(self,blockIndex,data):
 		self.DoIPUDSSend(PyUDS.TD + blockIndex + data)
+		return self.DoIPUDSRecv()
 		
 	def DoIPRequestTransferExit(self):
 		print "Requesting transfer exit..."
 		self.DoIPUDSSend(PyUDS.RTE)
+		return self.DoIPUDSRecv()
 	
 	def SetVerbosity(self, verbose):
 		self.isVerbose = verbose
@@ -341,28 +348,28 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 	#get necessary dependencies
 	import progressbar
 
-	print 'Flashing ' + ihexFP + ' to component ID : ' + componentID + '\n'
+	print '\nFlashing ' + ihexFP + ' to component ID : ' + componentID + '\n'
 	
 	#start a DoIP client
-	flashingClient = DoIP_Client()
-	flashingClient.SetVerbosity(verbose)
+	DoIPClient = DoIP_Client()
+	DoIPClient.SetVerbosity(verbose)
 	
-	if flashingClient:
+	if DoIPClient.TCP_Socket:
 		downloadErr = False
-		flashingClient.ConnectToDoIPServer()
+		DoIPClient.ConnectToDoIPServer()
 		
-		if flashingClient.isTCPConnected and flashingClient.isRoutingActivated:
+		if DoIPClient.isTCPConnected and DoIPClient.isRoutingActivated:
 		
 			print "Switching to programming diagnostic session" 
-			flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
+			DoIPClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
 			
-			if flashingClient.DoIPUDSRecv() == 0: #if no negative acknowledge or socket error 
+			if DoIPClient.DoIPUDSRecv() == 0: #if no negative acknowledge or socket error 
 				print "Successfully switched to programming diagnostic session\n"
-				flashingClient.DisconnectFromDoIPServer()
+				DoIPClient.DisconnectFromDoIPServer()
 				time.sleep(1)
-				flashingClient.ConnectToDoIPServer()
+				DoIPClient.ConnectToDoIPServer()
 				
-				if flashingClient.isTCPConnected:
+				if DoIPClient.isTCPConnected:
 					
 					##### initial seed key exchange ######
 					#to do : implement seed key exchange
@@ -370,46 +377,38 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 					#read DIDs
 					print "Starting pre-download checks..."
 					print "\tReading old tester finger print"
-					flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
-					
-					if(flashingClient.DoIPUDSRecv()==0):
+					if(DoIPClient.DoIPReadDID(PyUDS.DID_REFPRNT)==0):
 						print "\tRead success"
 						print "\tWriting new tester finger print"
 						#to do: we will need to replace the first line with the date
-						flashingClient.DoIPWriteDID(PyUDS.DID_WRFPRNT,'180727'+\
+						if DoIPClient.DoIPWriteDID(PyUDS.DID_WRFPRNT,'180727'+\
 													'484F4E472D2D4849'+\
 													'4C2D544553542D54'+\
 													'45414D0304050607'+\
 													'08090A0B0C0D0E0F'+\
 													'0001020304050607'+\
-													'5858585858585858')
-						if(flashingClient.DoIPUDSRecv()==0):
+													'5858585858585858') == 0:
 							print "\tWrite success"
 							print "\tVerifying new tester finger print"
 							
 							#compare with the date here
-							flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
-							if(flashingClient.DoIPUDSRecv()==0):
-								
+							if DoIPClient.DoIPReadDID(PyUDS.DID_REFPRNT)== 0 :	
 								#read and store old BL SW ID 
 								#to-do: decipher and store relevant info
 								print "\tRead success"
 								print "\tReading Bootloader SW ID"
-								flashingClient.DoIPReadDID(PyUDS.DID_BOOTSID)
-								if(flashingClient.DoIPUDSRecv()==0):
+								if DoIPClient.DoIPReadDID(PyUDS.DID_BOOTSID) == 0:
 									
 									#read and store old APP and CAL SW ID
 									##to-do: decipher and store relevant info
 									print "\tRead success"
 									print "\tReading Application and Calibration SW ID"
-									flashingClient.DoIPReadDID(PyUDS.DID_APCASID)
-									if(flashingClient.DoIPUDSRecv()==0):
+									if DoIPClient.DoIPReadDID(PyUDS.DID_APCASID) == 0:
 										print "\tRead success"
 										print "Pre-download checks complete\n"
 										
 										#Erase component memory for target component
-										flashingClient.DoIPEraseMemory(componentID);
-										if(flashingClient.DoIPUDSRecv()==0):
+										if DoIPClient.DoIPEraseMemory(componentID) == 0:
 											print "Erase memory success\n"
 										else:
 											downloadErr = True
@@ -450,7 +449,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 							print "\tTotal Memory:  " + memSizeStr + " (%.10d)\n" % memSize
 							
 							#request download here. Set maxBlockByteCount to valu from request download
-							maxBlockByteCount = flashingClient.DoIPRequestDownload(minAddrStr,memSizeStr)
+							maxBlockByteCount = DoIPClient.DoIPRequestDownload(minAddrStr,memSizeStr)
 							if maxBlockByteCount >= 2:
 								maxBlockByteCount -= 2 #subtract 2 for SID and index
 							else:
@@ -474,8 +473,8 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 							blockIndex = 1
 							
 							#turn off verbosity, less you be spammed!
-							if flashingClient.isVerbose:
-								flashingClient.SetVerbosity(False)
+							if DoIPClient.isVerbose:
+								DoIPClient.SetVerbosity(False)
 
 							print "Transfering Data -- Max block size(bytes): 0x%.4X (%d)" % (maxBlockByteCount,maxBlockByteCount)		
 							
@@ -490,17 +489,14 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 							#begin transferring data
 							for block in hexDataList: 
 								blockIndexStr = '%.2X' % (blockIndex&0xFF)
-								flashingClient.DoIPTransferData(blockIndexStr,block)
-								if flashingClient.DoIPUDSRecv()!=0: 
+								if DoIPClient.DoIPTransferData(blockIndexStr,block) != 0:
 									downloadErr= True
 									break
 								bar.update(blockIndex)
 								blockIndex+=1
 							bar.finish()
 							if not downloadErr: 
-								flashingClient.DoIPRequestTransferExit()
-								
-								if flashingClient.DoIPUDSRecv() == 0: 																
+								if DoIPClient.DoIPRequestTransferExit() == 0:													
 									t_Finish = time.time()
 									t_Download = int(t_Finish-t_Start)
 									hr = t_Download/3600
@@ -521,26 +517,20 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 								break
 						#reset verbosity
 						if verbose:
-							flashingClient.SetVerbosity(True)
+							DoIPClient.SetVerbosity(True)
 						
 						if not downloadErr:
 							#request check memory
-							flashingClient.DoIPCheckMemory(componentID)
-							if flashingClient.DoIPUDSRecv() == 0:						
-								if flashingClient.RxDoIPMsg.payload[9] == '0':
+							if DoIPClient.DoIPCheckMemory(componentID) == 0:
+								if DoIPClient.RxDoIPMsg.payload[9] == '0':
 									print "Check memory passed. Authorizing software update\n"
+									#if pass, then authorize application . to do: application authorization
 								else: 
 									print "Check memory failed. Software update is invalid. Exiting out of update sequence\n"
-							
-								#check for pass
-
-								#if pass, then authorize application . to do: application authorization
 								
 								print "Switching to default diagnostic session..."
 								print "\tWarning :: ECU will reset" 
-								flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
-								
-								if(flashingClient.DoIPUDSRecv()	== 0):
+								if DoIPClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS) == 0:
 									print "Successfully switched to default diagnostic session\n"
 									print "Software update success!!\n"
 							else:	
@@ -549,7 +539,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 							print "You got so close! But alas, my code is either not very good, or something happened in the release\n"
 						
 						#disconnect from the server gracefully please
-						flashingClient.DisconnectFromDoIPServer()
+						DoIPClient.DisconnectFromDoIPServer()
 						time.sleep(2)
 					else:
 						print "Error while performing pre-programming procedure. Exiting flash sequence."
@@ -562,7 +552,44 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 	else : 
 		print "Error while creating flash client. Unable to initiate flash sequence."
 
-# def DoIP_Erase_Memory		
+def DoIP_Erase_Memory(componentID, targetIP = '172.26.200.101', verbose = False,):
+	#Function to erase component ID
+	print "Erasing memory from component ID: " + (componentID)
+	#start a DoIP client
+	DoIPClient = DoIP_Client()
+	DoIPClient.SetVerbosity(verbose)
+	
+	if DoIPClient.TCP_Socket:
+		DoIPClient.ConnectToDoIPServer()
+		
+		if DoIPClient.isTCPConnected and DoIPClient.isRoutingActivated:
+		
+			print "Switching to programming diagnostic session" 
+			DoIPClient.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
+			
+			if DoIPClient.DoIPUDSRecv() == 0: #if no negative acknowledge or socket error 
+				print "Successfully switched to programming diagnostic session\n"
+				DoIPClient.DisconnectFromDoIPServer()
+				time.sleep(1)
+				DoIPClient.ConnectToDoIPServer()
+				
+				if DoIPClient.isTCPConnected:
+					if DoIPClient.DoIPEraseMemory(componentID) == 0:
+						print "Erase memory success\n"
+					else:
+						print "Error erasing memory. Exiting out of sequence"
+				else:
+					print "Error while reconnecting to ECU and//or activate. Exiting erase memory sequence."
+			else:
+				print "Error while switching to programming diagnostic session. Exiting erase memory sequence."
+				
+			DoIPClient.DisconnectFromDoIPServer()
+			time.sleep(2)
+			
+		else:
+			print "Error while connect to ECU and//or activate routing. Exiting erase memory sequence."
+	else : 
+		print "Error while creating DoIP client. Unable to initiate erase memory sequence."
 		
 def main():
 
@@ -604,7 +631,8 @@ def main():
 				PrintHelp()
 			elif argCount == 3:
 				if int(sys.argv[2])==0 or int(sys.argv[2])==1 or int(sys.argv[2])==2:
-					print "Erasing component ID: " + sys.argv[2];
+					compID = '%.2X'%int(sys.argv[2])
+					DoIP_Erase_Memory(compID)
 					#erase here
 				else:
 					print "Invalid component ID"
