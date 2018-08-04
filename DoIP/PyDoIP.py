@@ -123,7 +123,7 @@ class DoIP_Client:
 					print "Socket creation failed with error %s" %(err)
 					return err
 			try:
-				print "Connecting to DoIP Server at %s:%d ... " %(address,port)
+				print "Connecting to DoIP Server at %s:%d... " %(address,port)
 				self.targetIPAddr = address
 				self.targetPort = port
 				self.TCP_Socket.connect((address, port)) 
@@ -144,7 +144,7 @@ class DoIP_Client:
 	def DisconnectFromDoIPServer(self):
 		if self.isTCPConnected:
 			try: 
-				print "Disconnecting from DoIP server.."
+				print "Disconnecting from DoIP server..."
 				self.TCP_Socket.shutdown(socket.SHUT_RDWR)
 				self.TCP_Socket.close()
 				self.TCP_Socket = None
@@ -172,7 +172,7 @@ class DoIP_Client:
 				payloadLength = "%.8X" % (len(payload)/2) ##divide by 2 because 2 nibbles per byte
 				activationString = DoIPHeader + payloadLength + payload		
 				self.TxDoIPMsg.UpdateMsg(activationString,self.isVerbose)
-				print "Requesting routing activation"
+				print "Requesting routing activation..."
 				if self.isVerbose:
 					print "TCP SEND ::"
 					self.TxDoIPMsg.PrintMessage()
@@ -344,10 +344,8 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 	print 'Flashing ' + ihexFP + ' to component ID : ' + componentID + '\n'
 	
 	#start a DoIP client
-	
 	flashingClient = DoIP_Client()
 	flashingClient.SetVerbosity(verbose)
-	
 	
 	if flashingClient:
 		downloadErr = False
@@ -367,16 +365,17 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 				if flashingClient.isTCPConnected:
 					
 					##### initial seed key exchange ######
+					#to do : implement seed key exchange
 					
 					#read DIDs
-					print "Starting pre-download checks"
+					print "Starting pre-download checks..."
 					print "\tReading old tester finger print"
 					flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
 					
 					if(flashingClient.DoIPUDSRecv()==0):
 						print "\tRead success"
 						print "\tWriting new tester finger print"
-						#we will need to replace the first line with the date
+						#to do: we will need to replace the first line with the date
 						flashingClient.DoIPWriteDID(PyUDS.DID_WRFPRNT,'180727'+\
 													'484F4E472D2D4849'+\
 													'4C2D544553542D54'+\
@@ -387,9 +386,11 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 						if(flashingClient.DoIPUDSRecv()==0):
 							print "\tWrite success"
 							print "\tVerifying new tester finger print"
+							
 							#compare with the date here
 							flashingClient.DoIPReadDID(PyUDS.DID_REFPRNT)
 							if(flashingClient.DoIPUDSRecv()==0):
+								
 								#read and store old BL SW ID 
 								#to-do: decipher and store relevant info
 								print "\tRead success"
@@ -476,7 +477,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 							if flashingClient.isVerbose:
 								flashingClient.SetVerbosity(False)
 
-							print "Transfering Data -- Max block size(bytes): %.4X (%d)" % (maxBlockByteCount,maxBlockByteCount)		
+							print "Transfering Data -- Max block size(bytes): 0x%.4X (%d)" % (maxBlockByteCount,maxBlockByteCount)		
 							
 							#start download progress bar
 							bar = progressbar.ProgressBar(maxval=len(hexDataList), \
@@ -535,7 +536,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 
 								#if pass, then authorize application . to do: application authorization
 								
-								print "Switching to default diagnostic session"
+								print "Switching to default diagnostic session..."
 								print "\tWarning :: ECU will reset" 
 								flashingClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
 								
