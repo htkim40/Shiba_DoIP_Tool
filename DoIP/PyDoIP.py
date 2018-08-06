@@ -544,7 +544,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 					else:
 						print "Error while performing pre-programming procedure. Exiting flash sequence."
 				else:
-					print "Error while reconnecting to ECU and//or activate. Exiting flash sequence."
+					print "Error while reconnecting to ECU or during routing activation. Exiting flash sequence."
 			else:
 				print "Error while switching to programming diagnostic session. Exiting flash sequence."
 		else:
