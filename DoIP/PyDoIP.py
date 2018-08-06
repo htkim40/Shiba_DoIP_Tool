@@ -71,7 +71,7 @@ defaultTargetECUAddr = '2004'
 			
 
 class DoIP_Client:
-	def __init__(self,address = '172.26.200.16',port = 0, ECUAddr = '1111'):
+	def __init__(self,address = '172.26.200.15',port = 0, ECUAddr = '1111'):
 		#init tcp socket
 		self.localIPAddr = address 
 		self.localPort = port
