@@ -183,7 +183,7 @@ class DoIP_Client:
 				if self.isVerbose:
 					print "TCP RECV ::"
 				DoIPResponse = DoIPMsg(activationResponse,self.isVerbose)
-				if DoIPResponse.payload == '10':
+				if DoIPResponse.payload[0:2] == '10':
 					self.isRoutingActivated = True;
 					self.targetECUAddr = DoIPResponse.targetAddress
 					print "Routing activated with ECU: %s\n" %(self.targetECUAddr)
