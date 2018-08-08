@@ -443,7 +443,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 							if multiSegment:
 								maxAddr -= 1
 								
-							memSize = maxAddr - minAddr
+							memSize = maxAddr - minAddr + 1
 
 							minAddrStr = "%.8X" % minAddr
 							maxAddrStr = "%.8X" % maxAddr
