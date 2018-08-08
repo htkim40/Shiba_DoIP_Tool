@@ -224,7 +224,7 @@ class DoIP_Client:
 			print "Not currently connected to a server"
 			return -3
 				
-	def DoIPUDSRecv(self,rxBufLen = 1024,):	
+	def DoIPUDSRecv(self,rxBufLen = 1024, logging = True):	
 		if self.isTCPConnected:
 			try:
 				if self.isVerbose:
