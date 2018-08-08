@@ -198,7 +198,7 @@ class DoIP_Client:
 		else:
 			print "Unable to request routing activation. Currently not connected to a DoIP server"	 
 			
-	def DoIPUDSSend(self,message, localECUAddr = None, targetECUAddr = None. logging == True):
+	def DoIPUDSSend(self,message, localECUAddr = None, targetECUAddr = None, logging = True):
 		if self.isTCPConnected: 
 			try:
 				if not localECUAddr:
