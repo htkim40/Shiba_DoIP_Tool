@@ -84,6 +84,7 @@ class DoIP_Client:
 		self.isVerbose = False
 		self.TxDoIPMsg = DoIPMsg();
 		self.RxDoIPMsg = DoIPMsg();
+		self.logHndl = open('flash.log','w+')
 
 		try:
 			self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -197,7 +198,7 @@ class DoIP_Client:
 		else:
 			print "Unable to request routing activation. Currently not connected to a DoIP server"	 
 			
-	def DoIPUDSSend(self,message, localECUAddr = None, targetECUAddr = None):
+	def DoIPUDSSend(self,message, localECUAddr = None, targetECUAddr = None. logging = True):
 		if self.isTCPConnected: 
 			try:
 				if not localECUAddr:
@@ -209,6 +210,8 @@ class DoIP_Client:
 				payloadLength = "%.8X" % (len(payload)/2)
 				UDSString = DoIPHeader + payloadLength + payload
 				self.TxDoIPMsg.UpdateMsg(UDSString)
+				if logging == True: 
+					self.logHndl.write('Client: '+ self.TxDoIPMsg.payload)
 				if self.isVerbose:
 					print "TCP SEND ::"
 					self.TxDoIPMsg.PrintMessage()
@@ -221,13 +224,14 @@ class DoIP_Client:
 			print "Not currently connected to a server"
 			return -3
 				
-	def DoIPUDSRecv(self,rxBufLen = 256):	
+	def DoIPUDSRecv(self,rxBufLen = 1024,):	
 		if self.isTCPConnected:
 			try:
 				if self.isVerbose:
 					print "TCP RECV ::"
 				self.RxDoIPMsg.UpdateMsg(binascii.hexlify(self.TCP_Socket.recv(rxBufLen)).upper(),self.isVerbose)
-
+				if logging == True: 
+					self.logHndl.write('Server: '+ self.RxDoIPMsg.payload)
 				#check for positive ack, memory operation pending, or transfer operation pending
 				if self.RxDoIPMsg.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
 				self.RxDoIPMsg.payload == PyUDS.MOPNDNG or\
@@ -291,6 +295,7 @@ class DoIP_Client:
 	def	Terminate(self):
 		print "Closing DoIP Client ..."
 		self.TCP_Socket.close()
+		self.logHndl.close()
 		print "Good bye"
 	
 	def __exit__(self, exc_type, exc_value, traceback):
