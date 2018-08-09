@@ -124,25 +124,35 @@ class DoIP_Client:
 					print "Socket successfully created: Binded to %s:%d\n" %(self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 				except socket.error as err:
 					print "Socket creation failed with error %s" %(err)
+					self.TCP_Socket = None
 					return err
-			try:
-				print "Connecting to DoIP Server at %s:%d... " %(address,port)
-				self.targetIPAddr = address
-				self.targetPort = port
-				self.TCP_Socket.connect((address, port)) 
-				self.isTCPConnected = True	
-				print "Connection to DoIP established\n"
-			except socket.error as err: 
-				print "Unable to connect to socket at %s:%d. Socket failed with error: %s" % (address, port, err)
-				self.targetIPAddr = None
-				self.targetPort = None
-				self.isTCPConnected = False
+			if self.TCP_Socket != None:
+				try:
+					print "Connecting to DoIP Server at %s:%d... " %(address,port)
+					self.targetIPAddr = address
+					self.targetPort = port
+					self.TCP_Socket.connect((address, port)) 
+					self.isTCPConnected = True	
+					print "Connection to DoIP established\n"
+				except socket.error as err: 
+					print "Unable to connect to socket at %s:%d. Socket failed with error: %s" % (address, port, err)
+					self.targetIPAddr = None
+					self.targetPort = None
+					self.isTCPConnected = False
+			else:
+				return -1
 			
-		if routingActivation and self.isTCPConnected: 
+		if routingActivation == False:
+			return 0
+		elif routingActivation == True and self.isTCPConnected: 
 			self.targetECUAddr = targetECUAddr
-			self.RequestRoutingActivation()
+			if self.RequestRoutingActivation() == 0:
+				return 0
+			else:
+				return -1
 		elif routingActivation and not self.isTCPConnected:
 			print "Error :: DoIP client is not connected to a server"
+			return -1
 			
 	def DisconnectFromDoIPServer(self):
 		if self.isTCPConnected:
@@ -188,13 +198,16 @@ class DoIP_Client:
 					self.isRoutingActivated = True;
 					self.targetECUAddr = DoIPResponse.targetAddress
 					print "Routing activated with ECU: %s\n" %(self.targetECUAddr)
+					return 0
 				else:
 					self.isRoutingActivated = False;
 					print "Unable to activate routing"
+					return -1
 			except socket.error as err:
-				print "Unable to activate routing with ECU:%d. Socket failed with error: %s" % (targetECUAddr, err)
+				print "Unable to activate routing with ECU:%.4X. Socket failed with error: %s" % (int(targetECUAddr), err)
 				self.isRoutingActivated = 0;
 				self.targetECUAddr = None
+				return -1
 		else:
 			print "Unable to request routing activation. Currently not connected to a DoIP server"	 
 			
@@ -374,7 +387,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 				#time.sleep(1)
 				DoIPClient.ConnectToDoIPServer()
 				
-				if DoIPClient.isTCPConnected:
+				if DoIPClient.isTCPConnected and DoIPClient.isRoutingActivated:
 					
 					##### initial seed key exchange ######
 					#to do : implement seed key exchange
