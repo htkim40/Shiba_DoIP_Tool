@@ -371,7 +371,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 			if DoIPClient.DoIPUDSRecv() == 0: #if no negative acknowledge or socket error 
 				print "Successfully switched to programming diagnostic session\n"
 				DoIPClient.DisconnectFromDoIPServer()
-				time.sleep(1)
+				#time.sleep(1)
 				DoIPClient.ConnectToDoIPServer()
 				
 				if DoIPClient.isTCPConnected:
@@ -579,7 +579,7 @@ def DoIP_Erase_Memory(componentID, targetIP = '172.26.200.101', verbose = False,
 			if DoIPClient.DoIPUDSRecv() == 0: #if no negative acknowledge or socket error 
 				print "Successfully switched to programming diagnostic session\n"
 				DoIPClient.DisconnectFromDoIPServer()
-				time.sleep(1)
+				#time.sleep(1)
 				DoIPClient.ConnectToDoIPServer()
 				
 				if DoIPClient.isTCPConnected:
