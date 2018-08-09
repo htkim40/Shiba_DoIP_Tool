@@ -224,7 +224,10 @@ class DoIP_Client:
 				UDSString = DoIPHeader + payloadLength + payload
 				self.TxDoIPMsg.UpdateMsg(UDSString)
 				if logging == True: 
-					self.logHndl.write('Client: '+ self.TxDoIPMsg.payload + '\n')
+					if self.TxDoIPMsg.isUDS:
+						self.logHndl.write('Client: '+ self.TxDoIPMsg.payload + '\n')
+					else:
+						self.logHndl.write('Client: '+ self.TxDoIPMsg.DecodePayloadType() + '\n')
 				if self.isVerbose:
 					print "TCP SEND ::"
 					self.TxDoIPMsg.PrintMessage()
@@ -244,7 +247,10 @@ class DoIP_Client:
 					print "TCP RECV ::"
 				self.RxDoIPMsg.UpdateMsg(binascii.hexlify(self.TCP_Socket.recv(rxBufLen)).upper(),self.isVerbose)
 				if logging == True: 
-					self.logHndl.write('Server: '+ self.RxDoIPMsg.payload + '\n')
+					if self.RxDoIPMsg.isUDS:
+						self.logHndl.write('Server: '+ self.RxDoIPMsg.payload + '\n')
+					else:
+						self.logHndl.write('Server: '+ self.RxDoIPMsg.DecodePayloadType() + '\n')
 				#check for positive ack, memory operation pending, or transfer operation pending
 				if self.RxDoIPMsg.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
 				self.RxDoIPMsg.payload == PyUDS.MOPNDNG or\
@@ -358,7 +364,9 @@ class DoIPMsg:
 		print "Payload 			: " + str(self.payload)
 		print ""
 		
-	def DecodePayloadType(self,payloadType):
+	def DecodePayloadType(self,payloadType = None):
+		if payloadType == None:
+			payloadType = self.payloadType
 		return payloadTypeDescription.get(int(payloadType), "Invalid or unregistered diagnostic payload type")
 			
 def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = False, multiSegment = False):
