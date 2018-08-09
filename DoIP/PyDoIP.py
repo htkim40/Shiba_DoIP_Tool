@@ -224,7 +224,7 @@ class DoIP_Client:
 				UDSString = DoIPHeader + payloadLength + payload
 				self.TxDoIPMsg.UpdateMsg(UDSString)
 				if logging == True: 
-					self.logHndl.write('Client: '+ self.TxDoIPMsg.payload)
+					self.logHndl.write('Client: '+ self.TxDoIPMsg.payload + '\n')
 				if self.isVerbose:
 					print "TCP SEND ::"
 					self.TxDoIPMsg.PrintMessage()
@@ -244,7 +244,7 @@ class DoIP_Client:
 					print "TCP RECV ::"
 				self.RxDoIPMsg.UpdateMsg(binascii.hexlify(self.TCP_Socket.recv(rxBufLen)).upper(),self.isVerbose)
 				if logging == True: 
-					self.logHndl.write('Server: '+ self.RxDoIPMsg.payload)
+					self.logHndl.write('Server: '+ self.RxDoIPMsg.payload + '\n')
 				#check for positive ack, memory operation pending, or transfer operation pending
 				if self.RxDoIPMsg.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
 				self.RxDoIPMsg.payload == PyUDS.MOPNDNG or\
