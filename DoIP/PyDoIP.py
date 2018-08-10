@@ -562,15 +562,19 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 								print "\tWarning :: ECU will reset" 
 								if DoIPClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS) == 0:
 									print "Successfully switched to default diagnostic session\n"
+									print "Waiting for changes to persist...\n"
+									time.sleep(10)
 									print "Software update success!!\n"
+									
 							else:	
 								print "Error while checking memory. Exiting out of flash sequence."
 						else:
 							print "You got so close! But alas, my code is either not very good, or something happened in the release\n"
 						
 						#disconnect from the server gracefully please
+						print "Exiting out of flash sequence...\n"
 						DoIPClient.DisconnectFromDoIPServer()
-						time.sleep(2)
+
 					else:
 						print "Error while performing pre-programming procedure. Exiting flash sequence."
 				else:
@@ -606,15 +610,16 @@ def DoIP_Erase_Memory(componentID, targetIP = '172.26.200.101', verbose = False,
 				if DoIPClient.isTCPConnected:
 					if DoIPClient.DoIPEraseMemory(componentID) == 0:
 						print "Erase memory success\n"
+						print "Waiting for changes to persist..."
+						time.sleep(10)
 					else:
 						print "Error erasing memory. Exiting out of sequence"
 				else:
 					print "Error while reconnecting to ECU and//or activate. Exiting erase memory sequence."
 			else:
 				print "Error while switching to programming diagnostic session. Exiting erase memory sequence."
-				
+			
 			DoIPClient.DisconnectFromDoIPServer()
-			time.sleep(2)
 			
 		else:
 			print "Error while connect to ECU and//or activate routing. Exiting erase memory sequence."
