@@ -288,7 +288,24 @@ class DoIP_Client:
 			componentID = '%.2X'%(0xFF&componentID)
 		self.DoIPUDSSend(PyUDS.RC+PyUDS.STR+PyUDS.RC_CM+str(componentID)+CRCLen+CRC)
 		return self.DoIPUDSRecv()
-		
+
+	def DoIPSwitchDiagnosticSession(self,sessionID = 1):
+		targetSession = ''
+		if int(sessionID) == 1:
+			print "Switching to Default Diagnostic Session..."
+			self.DoIPUDSSend(PyUDS.DSC + PyUDS.DS)
+		elif int(sessionID) == 2: 
+			print "Switching to Programming Diagnostic Session..."
+			self.DoIPUDSSend(PyUDS.DSC + PyUDS.PRGS)
+		elif int(sessionID) == 3:
+			print "Switching to Extended diagnostic Session..."
+			self.DoIPUDSSend(PyUDS.DSC + PyUDS.EXTDS)
+		else:
+			print "Invalid diagnostic session. Session ID: 1) Default session 2) Programming session 3) Extended session"
+			return -1
+
+		return self.DoIPUDSRecv()
+
 	def DoIPRequestDownload(self,memAddr,memSize,dataFormatID = PyUDS.DFI_00,addrLenFormatID = PyUDS.ALFID):
 		print "Requesting download data..."
 		self.DoIPUDSSend(PyUDS.RD+dataFormatID+addrLenFormatID+memAddr+memSize)
@@ -640,6 +657,32 @@ def DoIP_Erase_Memory(componentID, targetIP = '172.26.200.101', verbose = False,
 			print "Error while connect to ECU and//or activate routing. Exiting erase memory sequence."
 	else : 
 		print "Error while creating DoIP client. Unable to initiate erase memory sequence."
+
+def Test_Switch_Diagnostic_Session(targetIP = '172.26.200.101', verbose = False, sessionID = 1):
+	#Function to Switch Diagnostic Session Then Close Socket
+	print "Switching to sessionID: " + str(sessionID)
+	#start a DoIP client
+	DoIPClient = DoIP_Client()
+	DoIPClient.SetVerbosity(verbose)
+	
+	if DoIPClient.TCP_Socket:
+		DoIPClient.ConnectToDoIPServer()
+		
+		if DoIPClient.isTCPConnected and DoIPClient.isRoutingActivated:
+		
+			print "Switching diagnostic session" 
+			print DoIPClient.DoIPSwitchDiagnosticSession(sessionID)
+			
+			
+			DoIPClient.DisconnectFromDoIPServer()
+			time.sleep(5)
+			
+			
+		else:
+			print "Error while connect to ECU and//or activate routing. Exiting erase memory sequence."
+	else : 
+		print "Error while creating DoIP client. Unable to initiate erase memory sequence."
+
 		
 def main():
 
@@ -716,6 +759,7 @@ def PrintHelp():
 		
 if __name__ == '__main__':
 	main()
+#	Test_Switch_Diagnostic_Session(2)
 #	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False)
 #	DoIP_Flash_Hex('02','BGW_App_GAMMA_F-00000159.hex',verbose = False)
 #	Test use of doIP message
