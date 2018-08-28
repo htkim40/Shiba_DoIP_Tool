@@ -224,7 +224,10 @@ class DoIP_Client:
 				UDSString = DoIPHeader + payloadLength + payload
 				self.TxDoIPMsg.UpdateMsg(UDSString)
 				if logging == True: 
-					self.logHndl.write('Client: '+ self.TxDoIPMsg.payload + '\n')
+					if self.TxDoIPMsg.isUDS:
+						self.logHndl.write('Client: '+ self.TxDoIPMsg.payload + '\n')
+					else:
+						self.logHndl.write('Client: '+ self.TxDoIPMsg.DecodePayloadType() + '\n')
 				if self.isVerbose:
 					print "TCP SEND ::"
 					self.TxDoIPMsg.PrintMessage()
@@ -244,7 +247,10 @@ class DoIP_Client:
 					print "TCP RECV ::"
 				self.RxDoIPMsg.UpdateMsg(binascii.hexlify(self.TCP_Socket.recv(rxBufLen)).upper(),self.isVerbose)
 				if logging == True: 
-					self.logHndl.write('Server: '+ self.RxDoIPMsg.payload + '\n')
+					if self.RxDoIPMsg.isUDS:
+						self.logHndl.write('Server: '+ self.RxDoIPMsg.payload + '\n')
+					else:
+						self.logHndl.write('Server: '+ self.RxDoIPMsg.DecodePayloadType() + '\n')
 				#check for positive ack, memory operation pending, or transfer operation pending
 				if self.RxDoIPMsg.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or\
 				self.RxDoIPMsg.payload == PyUDS.MOPNDNG or\
@@ -358,7 +364,9 @@ class DoIPMsg:
 		print "Payload 			: " + str(self.payload)
 		print ""
 		
-	def DecodePayloadType(self,payloadType):
+	def DecodePayloadType(self,payloadType = None):
+		if payloadType == None:
+			payloadType = self.payloadType
 		return payloadTypeDescription.get(int(payloadType), "Invalid or unregistered diagnostic payload type")
 			
 def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = False, multiSegment = False):
@@ -366,8 +374,13 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 	#get necessary dependencies
 	import progressbar
 
+
+	t_FlashStart = time.time()
+
 	print '\nFlashing ' + ihexFP + ' to component ID : ' + componentID + '\n'
 	
+
+
 	#start a DoIP client
 	DoIPClient = DoIP_Client()
 	DoIPClient.SetVerbosity(verbose)
@@ -521,10 +534,10 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 								if DoIPClient.DoIPRequestTransferExit() == 0:													
 									t_Finish = time.time()
 									t_Download = int(t_Finish-t_Start)
-									hr = t_Download/3600
-									min = t_Download/60 - hr*60
-									sec = t_Download - hr*3600 - min*60
-									print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr,min,sec)
+									hr_Download = t_Download/3600
+									min_Download = t_Download/60 - hr_Download*60
+									sec_Download = t_Download - hr_Download*3600 - min_Download*60
+									print "Download complete. Elapsed download time: %.0fdhr %.0fmin %.0fdsec" % (hr_Download,min_Download,sec_Download)
 									print 'Total Blocks sent: 		%d'% (len(hexDataList))
 									print 'Block size(bytes): 		%d'% (len(hexDataList[0])/2)
 									print 'Final block size(bytes):	%d\n'% (len(hexDataList[len(hexDataList)-1])/2)
@@ -555,14 +568,28 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP = '172.26.200.101', verbose = F
 								if DoIPClient.DoIPUDSSend(PyUDS.DSC + PyUDS.DS) == 0:
 									print "Successfully switched to default diagnostic session\n"
 									print "Software update success!!\n"
+									
+									t_FlashEnd = time.time()
+									t_Flash = int(t_FlashEnd - t_FlashStart);						
+									hr_Flash = t_Flash/3600
+									min_Flash = t_Flash/60 - hr_Flash*60
+									sec_Flash = t_Flash - hr_Flash*3600 - min_Flash*60
+									print "-----------------------------------------------------------------------------------"
+									print "Flash sequence complete. Elapsed flash time: %.0fdhr %.0fmin %.0fdsec \n" % (hr_Flash, min_Flash, sec_Flash)
+									print "-----------------------------------------------------------------------------------"
+									
 							else:	
 								print "Error while checking memory. Exiting out of flash sequence."
 						else:
 							print "You got so close! But alas, my code is either not very good, or something happened in the release\n"
 						
+						 
+
 						#disconnect from the server gracefully please
+						print "Exiting out of flash sequence...\n"
 						DoIPClient.DisconnectFromDoIPServer()
-						time.sleep(2)
+						time.sleep(5)
+
 					else:
 						print "Error while performing pre-programming procedure. Exiting flash sequence."
 				else:
@@ -597,16 +624,17 @@ def DoIP_Erase_Memory(componentID, targetIP = '172.26.200.101', verbose = False,
 				
 				if DoIPClient.isTCPConnected:
 					if DoIPClient.DoIPEraseMemory(componentID) == 0:
-						print "Erase memory success\n"
+						print "Erase memory success\n"					
 					else:
 						print "Error erasing memory. Exiting out of sequence"
 				else:
 					print "Error while reconnecting to ECU and//or activate. Exiting erase memory sequence."
 			else:
 				print "Error while switching to programming diagnostic session. Exiting erase memory sequence."
-				
+			
 			DoIPClient.DisconnectFromDoIPServer()
-			time.sleep(2)
+			time.sleep(5)
+			
 			
 		else:
 			print "Error while connect to ECU and//or activate routing. Exiting erase memory sequence."
