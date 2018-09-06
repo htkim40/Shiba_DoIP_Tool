@@ -3,7 +3,7 @@ import sys
 import binascii
 import PyUDS
 import time
-import sys
+import argparse
 
 ##DoIP Header Structure : <protocol version><inverse protocol version><payload type><payloadlength><payload>
 ##Payload format : <local ecu address> <optional: target ecu addres> <optional message ><ASRBISO><ASRBOEM>
@@ -66,12 +66,15 @@ payloadTypeDescription = {
 }
 			
 
+#to be changed later as an option in terminal			
 defaultTargetIPAddr = '172.26.200.101'
 defaultTargetECUAddr = '2004'
 			
 
 class DoIP_Client:
 	def __init__(self,address = '172.26.200.15',port = 0, ECUAddr = '1111'):
+		
+		#to do: need to add underscores for private properties...
 		#init tcp socket
 		self.localIPAddr = address 
 		self.localPort = port
@@ -686,7 +689,7 @@ def Test_Switch_Diagnostic_Session(targetIP = '172.26.200.101', verbose = False,
 		
 def main():
 
-	#This is terrible implementation...don't know how to parse out arguments that aren't in order. :( 
+	#Temporary quick way of getting user input. This will be replaced with usage of argparse. 
 	argCount = len(sys.argv)
 	if argCount > 1:
 		#we have action
