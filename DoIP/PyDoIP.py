@@ -756,7 +756,6 @@ if __name__ == '__main__':
 	required.add_argument("--erase", action = 'store_true', help = \
 		"Description: Erase a memory region(0,1,2,...) on ECU. "+\
 		"Usage: PyDoIP.py --erase "+\
-		"-hexfile <PATHTOHEXFILE> "+\
 		"-blockID <BLOCKID> "+\
 		"-clientID <CLIENTECUID> "+\
 		"-serverID <SERVERECUID> "+\
@@ -804,10 +803,36 @@ if __name__ == '__main__':
 				
 		
 		elif args['erase']:
-			print "erasing"
+			print "Erasing"
+
+			if args['blockID'][0]:
+				print "Memory Block ID : " + args['blockID'][0]
+
+				if args['clientID'][0]:
+					print "Client ECU ID: " + args['clientID'][0]
+
+					if args ['serverID'][0]:
+						print "Server ECU ID: " + args['serverID'][0]
+
+						if args ['targetIP'][0]:
+							print "Server ECU IP Addr: " + args['targetIP'][0]
+			
 			
 		elif args['switch']:
-			print "switchin"
+			print "Switching Diagnostic Session"
+			
+			if args['sessionID'][0]:
+					print "Diagnostic Session ID : " + args['sessionID'][0]
+					
+					if args['clientID'][0]:
+						print "Client ECU ID: " + args['clientID'][0]
+						
+						if args ['serverID'][0]:
+							print "Server ECU ID: " + args['serverID'][0]
+							
+							if args ['targetIP'][0]:
+								print "Server ECU IP Addr: " + args['targetIP'][0]
+			
 			
 		else:
 			parser.print_help()
