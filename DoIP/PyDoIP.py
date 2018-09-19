@@ -74,18 +74,18 @@ class DoIP_Client:
 
         # to do: need to add underscores for private properties...
         # init tcp socket
-        self.localIPAddr = address
-        self.localPort = port
-        self.localECUAddr = ECUAddr
-        self.targetIPAddr = None
-        self.targetPort = None
-        self.targetECUAddr = None
-        self.isTCPConnected = False
-        self.isRoutingActivated = False
-        self.isVerbose = False
-        self.TxDoIPMsg = DoIPMsg()
-        self.RxDoIPMsg = DoIPMsg()
-        self.logHndl = open('flash.log', 'w+')
+        self._localIPAddr = address
+        self._localPort = port
+        self._localECUAddr = ECUAddr
+        self._targetIPAddr = None
+        self._targetPort = None
+        self._targetECUAddr = None
+        self._isTCPConnected = False
+        self._isRoutingActivated = False
+        self._isVerbose = False
+        self._TxDoIPMsg = DoIPMsg()
+        self._RxDoIPMsg = DoIPMsg()
+        self._logHndl = open('flash.log', 'w+')
 
         try:
             self.TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -96,7 +96,7 @@ class DoIP_Client:
 
             self.TCP_Socket.settimeout(5.0)
             # self.TCP_Socket.setblocking(1)
-            self.TCP_Socket.bind((self.localIPAddr, self.localPort))
+            self.TCP_Socket.bind((self._localIPAddr, self._localPort))
             print "Socket successfully created: Binded to %s:%d" % (
                 self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
 
@@ -111,7 +111,7 @@ class DoIP_Client:
 
     def ConnectToDoIPServer(self, address=defaultTargetIPAddr, port=13400, routingActivation=True,
                             targetECUAddr=defaultTargetECUAddr):
-        if self.isTCPConnected:
+        if self._isTCPConnected:
             print "Error :: Already connected to a server. Close the connection before starting a new one\n"
         else:
             if not self.TCP_Socket:
@@ -124,9 +124,9 @@ class DoIP_Client:
                     self.TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     self.TCP_Socket.settimeout(5.0)
                     # self.TCP_Socket.setblocking(1)
-                    self.TCP_Socket.bind((self.localIPAddr, self.localPort))
+                    self.TCP_Socket.bind((self._localIPAddr, self._localPort))
                     print "Socket successfully created: Binded to %s:%d\n" % (
-                        self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])
+                        self.TCP_Socket.getsockname()[0], self.TCP_Socket.getsockname()[1])localPort
                 except socket.error as err:
                     print "Socket creation failed with error %s" % (err)
                     self.TCP_Socket = None
@@ -134,110 +134,110 @@ class DoIP_Client:
             if self.TCP_Socket != None:
                 try:
                     print "Connecting to DoIP Server at %s:%d... " % (address, port)
-                    self.targetIPAddr = address
-                    self.targetPort = port
+                    self._targetIPAddr = address
+                    self._targetPort = porthttps://github.com/htkim40/Shiba_DoIP_Tool.git
                     self.TCP_Socket.connect((address, port))
-                    self.isTCPConnected = True
+                    self._isTCPConnected = True
                     print "Connection to DoIP established\n"
                 except socket.error as err:
                     print "Unable to connect to socket at %s:%d. Socket failed with error: %s" % (address, port, err)
-                    self.targetIPAddr = None
-                    self.targetPort = None
-                    self.isTCPConnected = False
+                    self._targetIPAddr = None
+                    self._targetPort = None
+                    self._isTCPConnected = False
             else:
                 return -1
 
         if routingActivation == False:
             return 0
-        elif routingActivation == True and self.isTCPConnected:
-            self.targetECUAddr = targetECUAddr
+        elif routingActivation == True and self._isTCPConnected:
+            self._targetECUAddr = targetECUAddr
             if self.RequestRoutingActivation() == 0:
                 return 0
             else:
                 return -1
-        elif routingActivation and not self.isTCPConnected:
+        elif routingActivation and not self._isTCPConnected:
             print "Error :: DoIP client is not connected to a server"
             return -1
 
     def DisconnectFromDoIPServer(self):
-        if self.isTCPConnected:
+        if self._isTCPConnected:
             try:
                 print "Disconnecting from DoIP server..."
                 self.TCP_Socket.shutdown(socket.SHUT_RDWR)
                 self.TCP_Socket.close()
                 self.TCP_Socket = None
-                self.isTCPConnected = 0
+                self._isTCPConnected = 0
                 print "Connection successfully shut down\n"
             except socket.error as err:
                 print "Unable to disconnect from socket at %s:%d. Socket failed with error: %s." % (
-                    self.targetIPAddr, self.targetPort, err)
+                    self._targetIPAddr, self._targetPort, err)
                 print "Warning :: Socket is currently in a metastable state."
             finally:
-                self.targetIPAddr = None
-                self.targetPort = None
-                self.isTCPConnected = 0
+                self._targetIPAddr = None
+                self._targetPort = None
+                self._isTCPConnected = 0
         else:
             print "Error :: DoIP client is not connected to a server"
 
     def RequestRoutingActivation(self, activationType=DEFAULT_ACTIVATION, localECUAddr=None, targetECUAddr=None):
-        if self.isTCPConnected:
+        if self._isTCPConnected:
             try:
                 if not localECUAddr:
-                    localECUAddr = self.localECUAddr
+                    localECUAddr = self._localECUAddr
                 if not targetECUAddr:
-                    targetECUAddr = self.targetECUAddr
+                    targetECUAddr = self._targetECUAddr
                 DoIPHeader = PROTOCOL_VERSION + INVERSE_PROTOCOL_VERSION + DOIP_ROUTING_ACTIVATION_REQUEST
                 payload = localECUAddr + activationType + ASRBISO + ASRBOEM
                 payloadLength = "%.8X" % (len(payload) / 2)  # divide by 2 because 2 nibbles per byte
                 activationString = DoIPHeader + payloadLength + payload
-                self.TxDoIPMsg.UpdateMsg(activationString, self.isVerbose)
+                self._TxDoIPMsg.UpdateMsg(activationString, self._isVerbose)
                 print "Requesting routing activation..."
-                if self.isVerbose:
+                if self._isVerbose:
                     print "TCP SEND ::"
-                    self.TxDoIPMsg.PrintMessage()
+                    self._TxDoIPMsg.PrintMessage()
                 self.TCP_Socket.send(activationString.decode("hex"))
                 activationResponse = (binascii.hexlify(self.TCP_Socket.recv(2048))).upper()
-                if self.isVerbose:
+                if self._isVerbose:
                     print "TCP RECV ::"
-                DoIPResponse = DoIPMsg(activationResponse, self.isVerbose)
+                DoIPResponse = DoIPMsg(activationResponse, self._isVerbose)
                 if DoIPResponse.payload[0:2] == '10':
-                    self.isRoutingActivated = True
-                    self.targetECUAddr = DoIPResponse.targetAddress
-                    print "Routing activated with ECU: %s\n" % (self.targetECUAddr)
+                    self._isRoutingActivated = True
+                    self._targetECUAddr = DoIPResponse.targetAddress
+                    print "Routing activated with ECU: %s\n" % (self._targetECUAddr)
                     return 0
                 else:
-                    self.isRoutingActivated = False
+                    self._isRoutingActivated = False
                     print "Unable to activate routing"
                     return -1
             except socket.error as err:
                 print "Unable to activate routing with ECU:%.4X. Socket failed with error: %s" % (
                     int(targetECUAddr), err)
-                self.isRoutingActivated = 0
-                self.targetECUAddr = None
+                self._isRoutingActivated = 0
+                self._targetECUAddr = None
                 return -1
         else:
             print "Unable to request routing activation. Currently not connected to a DoIP server"
 
     def DoIPUDSSend(self, message, localECUAddr=None, targetECUAddr=None, logging=True):
-        if self.isTCPConnected:
+        if self._isTCPConnected:
             try:
                 if not localECUAddr:
-                    localECUAddr = self.localECUAddr
+                    localECUAddr = self._localECUAddr
                 if not targetECUAddr:
-                    targetECUAddr = self.targetECUAddr
+                    targetECUAddr = self._targetECUAddr
                 DoIPHeader = PROTOCOL_VERSION + INVERSE_PROTOCOL_VERSION + DOIP_DIAGNOSTIC_MESSAGE
-                payload = self.localECUAddr + self.targetECUAddr + message  # no ASRBISO
+                payload = self._localECUAddr + self._targetECUAddr + message  # no ASRBISO
                 payloadLength = "%.8X" % (len(payload) / 2)
                 UDSString = DoIPHeader + payloadLength + payload
-                self.TxDoIPMsg.UpdateMsg(UDSString)
+                self._TxDoIPMsg.UpdateMsg(UDSString)
                 if logging == True:
-                    if self.TxDoIPMsg.isUDS:
-                        self.logHndl.write('Client: ' + self.TxDoIPMsg.payload + '\n')
+                    if self._TxDoIPMsg.isUDS:
+                        self._logHndl.write('Client: ' + self._TxDoIPMsg.payload + '\n')
                     else:
-                        self.logHndl.write('Client: ' + self.TxDoIPMsg.DecodePayloadType() + '\n')
-                if self.isVerbose:
+                        self._logHndl.write('Client: ' + self._TxDoIPMsg.DecodePayloadType() + '\n')
+                if self._isVerbose:
                     print "TCP SEND ::"
-                    self.TxDoIPMsg.PrintMessage()
+                    self._TxDoIPMsg.PrintMessage()
                 self.TCP_Socket.send(UDSString.decode("hex"))
                 return 0
             except socket.error as err:
@@ -248,22 +248,22 @@ class DoIP_Client:
             return -3
 
     def DoIPUDSRecv(self, rxBufLen=1024, logging=True):
-        if self.isTCPConnected:
+        if self._isTCPConnected:
             try:
-                if self.isVerbose:
+                if self._isVerbose:
                     print "TCP RECV ::"
-                self.RxDoIPMsg.UpdateMsg(binascii.hexlify(self.TCP_Socket.recv(rxBufLen)).upper(), self.isVerbose)
+                self._RxDoIPMsg.UpdateMsg(binascii.hexlify(self.TCP_Socket.recv(rxBufLen)).upper(), self._isVerbose)
                 if logging == True:
-                    if self.RxDoIPMsg.isUDS:
-                        self.logHndl.write('Server: ' + self.RxDoIPMsg.payload + '\n')
+                    if self._RxDoIPMsg.isUDS:
+                        self._logHndl.write('Server: ' + self._RxDoIPMsg.payload + '\n')
                     else:
-                        self.logHndl.write('Server: ' + self.RxDoIPMsg.DecodePayloadType() + '\n')
+                        self._logHndl.write('Server: ' + self._RxDoIPMsg.DecodePayloadType() + '\n')
                 # check for positive ack, memory operation pending, or transfer operation pending
-                if self.RxDoIPMsg.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or \
-                        self.RxDoIPMsg.payload == PyUDS.MOPNDNG or \
-                        self.RxDoIPMsg.payload == PyUDS.TOPNDNG:
+                if self._RxDoIPMsg.payloadType == DOIP_DIAGNOSTIC_POSITIVE_ACKNOWLEDGE or \
+                        self._RxDoIPMsg.payload == PyUDS.MOPNDNG or \
+                        self._RxDoIPMsg.payload == PyUDS.TOPNDNG:
                     return self.DoIPUDSRecv()
-                elif self.RxDoIPMsg.payloadType == DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE:
+                elif self._RxDoIPMsg.payloadType == DOIP_GENERIC_NEGATIVE_ACKNOWLEDGE:
                     return -2
                 else:
                     return 0
@@ -323,10 +323,10 @@ class DoIP_Client:
         self.DoIPUDSSend(PyUDS.RD + dataFormatID + addrLenFormatID + memAddr + memSize)
         if (self.DoIPUDSRecv() == 0):
             print "Request download data success\n"
-            dlLenFormatID = int(self.RxDoIPMsg.payload[2], 16)  # number of bytes
+            dlLenFormatID = int(self._RxDoIPMsg.payload[2], 16)  # number of bytes
         else:
             return -1
-        return int(self.RxDoIPMsg.payload[4:(2 * dlLenFormatID + 4)], 16)
+        return int(self._RxDoIPMsg.payload[4:(2 * dlLenFormatID + 4)], 16)
 
     def DoIPTransferData(self, blockIndex, data):
         self.DoIPUDSSend(PyUDS.TD + blockIndex + data)
@@ -338,12 +338,12 @@ class DoIP_Client:
         return self.DoIPUDSRecv()
 
     def SetVerbosity(self, verbose):
-        self.isVerbose = verbose
+        self._isVerbose = verbose
 
     def Terminate(self):
         print "Closing DoIP Client ..."
         self.TCP_Socket.close()
-        self.logHndl.close()
+        self._logHndl.close()
         print "Good bye"
 
     def __exit__(self, exc_type, exc_value, traceback):
