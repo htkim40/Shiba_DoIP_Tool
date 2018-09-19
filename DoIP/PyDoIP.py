@@ -719,8 +719,13 @@ def Test_Switch_Diagnostic_Session(targetIP='172.26.200.101', sessionID=1, verbo
         print "Error while creating DoIP client. Unable to initiate erase memory sequence."
 
 
+''' 
+to do: move contents below into main so that main is called safely only when PyDoIP.py is called from terminal
+'''
+
 def main():
-   print "main"
+
+	print "main"
 
 
 
@@ -780,7 +785,8 @@ if __name__ == '__main__':
 	try:
 		args = vars(parser.parse_args())
 		print '\n'
-		print args
+		print args 
+		print '\n'
 				
 		if args['flash']:
 			print "Flashing"
