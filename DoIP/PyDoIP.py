@@ -721,22 +721,7 @@ to do: move contents below into main so that main is called safely only when PyD
 '''
 
 def main():
-
-	print "main"
-
-
-
-if __name__ == '__main__':
-#    main()
-#	Test_Switch_Diagnostic_Session(sessionID = 2)
-#	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False) def __init__(self, address='172.26.200.15', port=0, ECUAddr='1111'):
-#	DoIP_Flash_Hex('02','BGW_App_GAMMA_F-00000159.hex',verbose = False)
-#	Test use of doIP message	
-#	udspl = '5001'
-#	plLen = '%.8X'%len(udspl)
-#	srcAddr = '1111'
-#	trgtAddr = '2004'
-#	testMsg = DoIPMsg(DOIP_PV+DOIP_IPV+DOIP_UDS+plLen+udspl+srcAddr+trgtAddr+'5001',verbose = True)
+	
 	import argparse
 
 	options = []
@@ -860,4 +845,20 @@ if __name__ == '__main__':
 
 	else:
 		parser.print_help()
+
+
+
+
+if __name__ == '__main__':
+#    main()
+#	Test_Switch_Diagnostic_Session(sessionID = 2)
+#	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False) def __init__(self, address='172.26.200.15', port=0, ECUAddr='1111'):
+#	DoIP_Flash_Hex('02','BGW_App_GAMMA_F-00000159.hex',verbose = False)
+#	Test use of doIP message	
+#	udspl = '5001'
+#	plLen = '%.8X'%len(udspl)
+#	srcAddr = '1111'
+#	trgtAddr = '2004'
+#	testMsg = DoIPMsg(DOIP_PV+DOIP_IPV+DOIP_UDS+plLen+udspl+srcAddr+trgtAddr+'5001',verbose = True)
+	main()
 
