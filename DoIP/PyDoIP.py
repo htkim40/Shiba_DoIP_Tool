@@ -422,7 +422,7 @@ def DoIP_Routine_Control(subfunction, routine, op, verbose=False):
     else:
         print "TCP Socket creation failed."
 
-def DoIP_Flash_Hex(componentID, ihexFP, targetIP='172.26.200.101', verbose=False, multiSegment=False):
+def DoIP_Flash_Hex(componentID, ihexFP, targetIP='172.26.200.101', verbose=False, multiSegment=True):
 	# get necessary dependencies
 	import progressbar
 
@@ -434,21 +434,21 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP='172.26.200.101', verbose=False
 	DoIPClient = DoIP_Client()
 	DoIPClient.SetVerbosity(verbose)
 
-	if DoIPClient.TCP_Socket:
+	if DoIPClient._TCP_Socket:
 		downloadErr = False
 		DoIPClient.ConnectToDoIPServer()
 
-		if DoIPClient.isTCPConnected and DoIPClient.isRoutingActivated:
+		if DoIPClient._isTCPConnected and DoIPClient._isRoutingActivated:
 
 			print "Switching to programming diagnostic session"
-			if DoIPClient.DoIPSwitchDiagnosticSession(PyUDS.PRGS):
+			if DoIPClient.DoIPSwitchDiagnosticSession(PyUDS.PRGS)==0:
 				print "Successfully switched to programming diagnostic session\n"
 
 				#reset connection to server
 				DoIPClient.DisconnectFromDoIPServer()
 				DoIPClient.ConnectToDoIPServer()
 
-				if DoIPClient.isTCPConnected and DoIPClient.isRoutingActivated:
+				if DoIPClient._isTCPConnected and DoIPClient._isRoutingActivated:
 
 					# # # initial seed key exchange # # #
 					# to do : implement seed key exchange
@@ -456,7 +456,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP='172.26.200.101', verbose=False
 					# read DIDs
 					print "Starting pre-download checks..."
 					print "\tReading old tester finger print"
-					if (DoIPClient.DoIPReadDID(PyUDS.DID_REFPRNT) == 0):
+					if DoIPClient.DoIPReadDID(PyUDS.DID_REFPRNT) == 0:
 						print "\tRead success"
 						print "\tWriting new tester finger print"
 						# to do: we will need to replace the first line with the date
@@ -655,26 +655,26 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP='172.26.200.101', verbose=False
 		print "Error while creating flash client. Unable to initiate flash sequence."
 
 
-def DoIP_Erase_Memory(componentID, targetIP='172.26.200.101', verbose=False, ):
+def DoIP_Erase_Memory(componentID, targetIP='172.26.200.101', verbose=False):
     # Function to erase component ID
     print "Erasing memory from component ID: " + (componentID)
     # start a DoIP client
     DoIPClient = DoIP_Client()
     DoIPClient.SetVerbosity(verbose)
 
-    if DoIPClient.TCP_Socket:
+    if DoIPClient._TCP_Socket:
         DoIPClient.ConnectToDoIPServer()
 
-        if DoIPClient.isTCPConnected and DoIPClient.isRoutingActivated:
+        if DoIPClient._isTCPConnected and DoIPClient._isRoutingActivated:
 
             print "Switching to programming diagnostic session"
-            if DoIPClient.DoIPSwitchDiagnosticSession(PyUDS.PRGS):
+            if DoIPClient.DoIPSwitchDiagnosticSession(PyUDS.PRGS) == 0:
                 print "Successfully switched to programming diagnostic session\n"
                 DoIPClient.DisconnectFromDoIPServer()
                 # time.sleep(1)
                 DoIPClient.ConnectToDoIPServer()
 
-                if DoIPClient.isTCPConnected:
+                if DoIPClient._isTCPConnected:
                     if DoIPClient.DoIPEraseMemory(componentID) == 0:
                         print "Erase memory success\n"
                     else:
@@ -686,7 +686,6 @@ def DoIP_Erase_Memory(componentID, targetIP='172.26.200.101', verbose=False, ):
 
             DoIPClient.DisconnectFromDoIPServer()
             time.sleep(5)
-
 
         else:
             print "Error while connect to ECU and//or activate routing. Exiting erase memory sequence."
@@ -704,7 +703,7 @@ def Test_Switch_Diagnostic_Session(targetIP='172.26.200.101', sessionID=1, verbo
     if DoIPClient.TCP_Socket:
         DoIPClient.ConnectToDoIPServer()
 
-        if DoIPClient.isTCPConnected and DoIPClient.isRoutingActivated:
+        if DoIPClient._isTCPConnected and DoIPClient._isRoutingActivated:
 
             print "Switching diagnostic session"
             print DoIPClient.DoIPSwitchDiagnosticSession(sessionID)
@@ -780,39 +779,76 @@ if __name__ == '__main__':
 	optional.add_argument("-targetIP", nargs = 1,default = ['172.26.200.101'], type = str, help = "Target IP address of ECU, e.g. 192.168.7.2. Default: 172.26.200.101")
 	optional.add_argument("-sessionID", nargs = 1,default = ['1'], type = str, help = "Diagnostic session: 1) defaultsession, 2) programming, 3) extended. Default: 1")
 	optional.add_argument("-v", "--verbose", help="Set verbosity. Default: false", action="store_true")
+	optional.add_argument("-sb", "--singleBlock", help="Set single block download. Default: false (multi-block download)", action="store_true")
 	
-	
-	try:
-		args = vars(parser.parse_args())
-		print '\n'
-		print args 
-		print '\n'
-				
-		if args['flash']:
-			print "Flashing"
-			
-			if args['hexfile'][0]:
-				print ".hex File Path: " + args['hexfile'][0]
-				
-				if args['blockID'][0]:
-					print "Memory Block ID : " + args['blockID'][0]
-					
-					if args['clientID'][0]:
-						print "Client ECU ID: " + args['clientID'][0]
-						
-						if args ['serverID'][0]:
-							print "Server ECU ID: " + args['serverID'][0]
-							
-							if args ['targetIP'][0]:
-								print "Server ECU IP Addr: " + args['targetIP'][0]
-							
-				
-		
-		elif args['erase']:
-			print "Erasing"
+	args = vars(parser.parse_args())
+	print args 
+	print '\n'
 
-			if args['blockID'][0]:
+	if args['flash']:
+		print "Flashing"
+
+		if args['hexfile']:
+			print ".hex File Path: " + args['hexfile'][0]
+
+			if args['blockID']:
 				print "Memory Block ID : " + args['blockID'][0]
+
+				if args['clientID']:
+					print "Client ECU ID: " + args['clientID'][0]
+
+					if args ['serverID']:
+						print "Server ECU ID: " + args['serverID'][0]
+
+						if args ['targetIP']:
+							print "Server ECU IP Addr: " + args['targetIP'][0]
+							
+							if args['singleBlock']:
+								DoIP_Flash_Hex(args['blockID'][0], args['hexfile'][0], targetIP=args['targetIP'][0], verbose=args['verbose'], multiSegment=False)
+							else:
+								DoIP_Flash_Hex(args['blockID'][0], args['hexfile'][0], targetIP=args['targetIP'][0], verbose=args['verbose'], multiSegment=True)
+						else:
+							print "Error:: No target IP address specified"
+					else:
+						print "Error:: No target/server ECU address specified"
+				else:
+					print "Error:: No host/client ECU address specified"
+			else:
+				print "Error:: No memory block/region ID specified"			
+		else:
+			print "Error:: No .hex file(path) specified"
+
+	elif args['erase']:
+		print "Erasing"
+
+		if args['blockID'][0]:
+			print "Memory Block ID : " + args['blockID'][0]
+
+			if args['clientID'][0]:
+				print "Client ECU ID: " + args['clientID'][0]
+
+				if args ['serverID'][0]:
+					print "Server ECU ID: " + args['serverID'][0]
+
+					if args ['targetIP'][0]:
+						print "Server ECU IP Addr: " + args['targetIP'][0]
+						DoIP_Erase_Memory(args['blockID'][0], targetIP=args['targetIP'][0], verbose=args['verbose'])
+						
+					else:
+						print "Error:: No target IP address specified"
+				else:
+					print "Error:: No target/server ECU address specified"
+			else:
+				print "Error:: No host/client ECU address specified"
+		else:
+			print "Error:: No memory block/region ID specified"		
+
+
+	elif args['switch']:
+		print "Switching Diagnostic Session"
+
+		if args['sessionID'][0]:
+				print "Diagnostic Session ID : " + args['sessionID'][0]
 
 				if args['clientID'][0]:
 					print "Client ECU ID: " + args['clientID'][0]
@@ -822,28 +858,8 @@ if __name__ == '__main__':
 
 						if args ['targetIP'][0]:
 							print "Server ECU IP Addr: " + args['targetIP'][0]
-			
-			
-		elif args['switch']:
-			print "Switching Diagnostic Session"
-			
-			if args['sessionID'][0]:
-					print "Diagnostic Session ID : " + args['sessionID'][0]
-					
-					if args['clientID'][0]:
-						print "Client ECU ID: " + args['clientID'][0]
-						
-						if args ['serverID'][0]:
-							print "Server ECU ID: " + args['serverID'][0]
-							
-							if args ['targetIP'][0]:
-								print "Server ECU IP Addr: " + args['targetIP'][0]
-			
-			
-		else:
-			parser.print_help()
-			
-	except:
-		
-		sys.exit(0)	
+
+
+	else:
+		parser.print_help()
 
