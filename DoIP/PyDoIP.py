@@ -109,8 +109,7 @@ class DoIP_Client:
     def __enter__(self):
         return self
 
-    def ConnectToDoIPServer(self, address=defaultTargetIPAddr, port=13400, routingActivation=True,
-                            targetECUAddr=defaultTargetECUAddr):
+    def ConnectToDoIPServer(self, address=defaultTargetIPAddr, port=13400, routingActivation=True, targetECUAddr= '2004'):
         if self._isTCPConnected:
             print "Error :: Already connected to a server. Close the connection before starting a new one\n"
         else:
@@ -119,8 +118,7 @@ class DoIP_Client:
                 try:
                     self._TCP_Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     # self._TCP_Socket.setsockopt(socket.IPPROTO_TCP, 12, 1)#supposedly, 12 is TCP_QUICKACK option id
-                    self._TCP_Socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY,
-                                               1)  # immediately send to wire wout delay
+                    self._TCP_Socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # immediately send to wire wout delay
                     self._TCP_Socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     self._TCP_Socket.settimeout(5.0)
                     # self._TCP_Socket.setblocking(1)
@@ -422,7 +420,7 @@ def DoIP_Routine_Control(subfunction, routine, op, verbose=False):
     else:
         print "TCP Socket creation failed."
 
-def DoIP_Flash_Hex(componentID, ihexFP, targetIP='172.26.200.101', verbose=False, multiSegment=True):
+def DoIP_Flash_Hex(componentID, ihexFP, hostECUAddr = '1111', serverECUAddr = '2004',targetIP='172.26.200.101', verbose=False, multiSegment=True):
 	# get necessary dependencies
 	import progressbar
 
@@ -431,12 +429,12 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP='172.26.200.101', verbose=False
 	print '\nFlashing ' + ihexFP + ' to component ID : ' + componentID + '\n'
 
 	# start a DoIP client
-	DoIPClient = DoIP_Client()
+	DoIPClient = DoIP_Client(address = '0', port = 0, ECUAddr = hostECUAddr)
 	DoIPClient.SetVerbosity(verbose)
 
 	if DoIPClient._TCP_Socket:
 		downloadErr = False
-		DoIPClient.ConnectToDoIPServer()
+		DoIPClient.ConnectToDoIPServer(address = targetIP, port = 13400, routingActivation = True, targetECUAddr = serverECUAddr)
 
 		if DoIPClient._isTCPConnected and DoIPClient._isRoutingActivated:
 
@@ -446,7 +444,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, targetIP='172.26.200.101', verbose=False
 
 				#reset connection to server
 				DoIPClient.DisconnectFromDoIPServer()
-				DoIPClient.ConnectToDoIPServer()
+				DoIPClient.ConnectToDoIPServer(address = targetIP, port = 13400, routingActivation = True, targetECUAddr = serverECUAddr)
 
 				if DoIPClient._isTCPConnected and DoIPClient._isRoutingActivated:
 
@@ -731,7 +729,7 @@ def main():
 if __name__ == '__main__':
 #    main()
 #	Test_Switch_Diagnostic_Session(sessionID = 2)
-#	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False)
+#	DoIP_Flash_Hex('00','BGW_BL_AB.hex',verbose = False) def __init__(self, address='172.26.200.15', port=0, ECUAddr='1111'):
 #	DoIP_Flash_Hex('02','BGW_App_GAMMA_F-00000159.hex',verbose = False)
 #	Test use of doIP message	
 #	udspl = '5001'
