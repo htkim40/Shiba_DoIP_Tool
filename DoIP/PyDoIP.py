@@ -415,7 +415,7 @@ def DoIP_Routine_Control(subfunction, routine, op, verbose=False):
     if DoIPClient._TCP_Socket:
         DoIPClient.ConnectToDoIPServer()
 
-        if DoIPClient.isTCPConnected and DoIPClient.isRoutingActivated:
+        if DoIPClient._isTCPConnected and DoIPClient._isRoutingActivated:
             
 			if DoIPClient.DoIPRoutineControl(subfunction, routine, op):
 				print "Successfully sent Routine Control Request: %s" % (subfunction+routine+op)
