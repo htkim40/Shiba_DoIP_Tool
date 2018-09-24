@@ -299,6 +299,10 @@ class DoIP_Client:
         print "Checking memory..."
         if type(componentID) == 'int':
             componentID = '%.2X' % (0xFF & componentID)
+	elif isinstance(componentID, str): # If componentID is a string
+	    if len(componentID) % 2 != 0: # If the length of componentID is not even
+                componentID = '0' + componentID # Add a leading '0' to make componentID length even
+
         self._DoIPUDSSend(PyUDS.RC + PyUDS.STR + PyUDS.RC_CM + str(componentID) + CRCLen + CRC)
         return self._DoIPUDSRecv()
 
