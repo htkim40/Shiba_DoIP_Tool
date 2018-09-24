@@ -557,7 +557,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, hostECUAddr = '1111', serverECUAddr = '2
 							blockIndex = 1
 
 							# turn off verbosity, less you be spammed!
-							if DoIPClient.isVerbose:
+							if DoIPClient._isVerbose:
 								DoIPClient.SetVerbosity(False)
 
 							print "Transfering Data -- Max block size(bytes): 0x%.4X (%d)" % (
