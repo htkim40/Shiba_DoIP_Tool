@@ -616,7 +616,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, hostECUAddr = '1111', serverECUAddr = '2
 						if not downloadErr:
 							# request check memory
 							if DoIPClient.DoIPCheckMemory(componentID) == 0:
-								if DoIPClient.RxDoIPMsg.payload[9] == '0':
+								if DoIPClient._RxDoIPMsg.payload[9] == '0':
 									print "Check memory passed. Authorizing software update\n"
 								# if pass, then authorize application . to do: application authorization
 								else:
