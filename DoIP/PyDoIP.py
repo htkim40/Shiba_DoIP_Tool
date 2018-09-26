@@ -68,6 +68,11 @@ payloadTypeDescription = {
 defaultTargetIPAddr = '172.26.200.101'
 defaultTargetECUAddr = '2004'
 
+def PadHexwithLead0s(hexStr):
+    if isinstance (hexStr, str): # Make sure input argument is string
+        if len(hexStr) % 2 != 0: # If the length is not even
+             hexStr = '0' + hexStr # Add a leading '0' to get even length
+    return hexStr
 
 class DoIP_Client:
     def __init__(self, address='172.26.200.15', port=0, ECUAddr='1111'):
@@ -286,23 +291,22 @@ class DoIP_Client:
         return self._DoIPUDSRecv()
 
     def DoIPEraseMemory(self, componentID):
+        print "Erasing memory..."
+        
         if type(componentID) == 'int':
             componentID = '%0.2X' % (0xFF & componentID)
-        elif isinstance(componentID, str): # If componentID is a string
-            if len(componentID) % 2 != 0: # If the length of componentID is not even
-                    componentID = '0' + componentID # Add a leading '0' to make componentID length even
-
+            
+        componentID = PadHexwithLead0s(componentID)
         self._DoIPUDSSend(PyUDS.RC + PyUDS.STR + PyUDS.RC_EM + str(componentID))  # #  TO DO: CHANGE VALUE TO VARAIBLE
         return self._DoIPUDSRecv()
 
     def DoIPCheckMemory(self, componentID, CRCLen='00', CRC='00'):
         print "Checking memory..."
+        
         if type(componentID) == 'int':
             componentID = '%.2X' % (0xFF & componentID)
-        elif isinstance(componentID, str): # If componentID is a string
-            if len(componentID) % 2 != 0: # If the length of componentID is not even
-                    componentID = '0' + componentID # Add a leading '0' to make componentID length even
-
+            
+        componentID = PadHexwithLead0s(componentID)
         self._DoIPUDSSend(PyUDS.RC + PyUDS.STR + PyUDS.RC_CM + str(componentID) + CRCLen + CRC)
         return self._DoIPUDSRecv()
 
