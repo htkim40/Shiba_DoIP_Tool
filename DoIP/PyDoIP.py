@@ -3,6 +3,7 @@ import sys
 import binascii
 import PyUDS
 import time
+import platform
 # import argparse
 
 # DoIP Header Structure : <protocol version><inverse protocol version><payload type><payloadlength><payload>
@@ -75,11 +76,22 @@ def PadHexwithLead0s(hexStr):
     return hexStr
 
 class DoIP_Client:
-    def __init__(self, address='172.26.200.15', port=0, ECUAddr='1111'):
+    def __init__(self, address='0', port=0, ECUAddr='1111'):
 
         # to do: need to add underscores for private properties...
         # init tcp socket
         self._localIPAddr = address
+        
+        # Reason for the if statement is that self._TCP_Socket.bind() does not seem to work in Windows when address == '0'
+        if "Window" in platform.platform(): # Checks if software is running in the Windows OS
+        
+            # Use an netowrk interface IP address
+            #
+            # WARNING: If there are multiple IP addresses, the first IP address found will be used
+            # The first IP address may not be the desired IP adress.
+            # So it is recommended to temporarily close all other network interfaces used by the software
+            self._localIPAddr = socket.gethostbyname(socket.getfqdn())
+        
         self._localPort = port
         self._localECUAddr = ECUAddr
         self._targetIPAddr = None
@@ -440,7 +452,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, hostECUAddr = '1111', serverECUAddr = '2
 	print '\nFlashing ' + ihexFP + ' to component ID : ' + componentID + '\n'
 
 	# start a DoIP client
-	DoIPClient = DoIP_Client(address = '0', port = 0, ECUAddr = hostECUAddr)
+	DoIPClient = DoIP_Client(ECUAddr = hostECUAddr)
 	DoIPClient.SetVerbosity(verbose)
 
 	if DoIPClient._TCP_Socket:
