@@ -3,6 +3,7 @@ import sys
 import binascii
 import PyUDS
 import time
+import platform
 # import argparse
 
 # DoIP Header Structure : <protocol version><inverse protocol version><payload type><payloadlength><payload>
@@ -68,13 +69,29 @@ payloadTypeDescription = {
 defaultTargetIPAddr = '172.26.200.101'
 defaultTargetECUAddr = '2004'
 
+def PadHexwithLead0s(hexStr):
+    if isinstance (hexStr, str): # Make sure input argument is string
+        if len(hexStr) % 2 != 0: # If the length is not even
+             hexStr = '0' + hexStr # Add a leading '0' to get even length
+    return hexStr
 
 class DoIP_Client:
-    def __init__(self, address='172.26.200.15', port=0, ECUAddr='1111'):
+    def __init__(self, address='0', port=0, ECUAddr='1111'):
 
         # to do: need to add underscores for private properties...
         # init tcp socket
         self._localIPAddr = address
+        
+        # Reason for the if statement is that self._TCP_Socket.bind() does not seem to work in Windows when address == '0'
+        if "Window" in platform.platform(): # Checks if software is running in the Windows OS
+        
+            # Use an netowrk interface IP address
+            #
+            # WARNING: If there are multiple IP addresses, the first IP address found will be used
+            # The first IP address may not be the desired IP adress.
+            # So it is recommended to temporarily close all other network interfaces used by the software
+            self._localIPAddr = socket.gethostbyname(socket.getfqdn())
+        
         self._localPort = port
         self._localECUAddr = ECUAddr
         self._targetIPAddr = None
@@ -286,16 +303,22 @@ class DoIP_Client:
         return self._DoIPUDSRecv()
 
     def DoIPEraseMemory(self, componentID):
+        print "Erasing memory..."
+        
         if type(componentID) == 'int':
-            componentID = '%.2X' % (0xFF & componentID)
-        print "Erasing memory for component ID: %s..." % componentID
+            componentID = '%0.2X' % (0xFF & componentID)
+            
+        componentID = PadHexwithLead0s(componentID)
         self._DoIPUDSSend(PyUDS.RC + PyUDS.STR + PyUDS.RC_EM + str(componentID))  # #  TO DO: CHANGE VALUE TO VARAIBLE
         return self._DoIPUDSRecv()
 
     def DoIPCheckMemory(self, componentID, CRCLen='00', CRC='00'):
         print "Checking memory..."
+        
         if type(componentID) == 'int':
             componentID = '%.2X' % (0xFF & componentID)
+            
+        componentID = PadHexwithLead0s(componentID)
         self._DoIPUDSSend(PyUDS.RC + PyUDS.STR + PyUDS.RC_CM + str(componentID) + CRCLen + CRC)
         return self._DoIPUDSRecv()
 
@@ -408,7 +431,7 @@ def DoIP_Routine_Control(subfunction, routine, op, verbose=False):
     if DoIPClient._TCP_Socket:
         DoIPClient.ConnectToDoIPServer()
 
-        if DoIPClient.isTCPConnected and DoIPClient.isRoutingActivated:
+        if DoIPClient._isTCPConnected and DoIPClient._isRoutingActivated:
             
 			if DoIPClient.DoIPRoutineControl(subfunction, routine, op):
 				print "Successfully sent Routine Control Request: %s" % (subfunction+routine+op)
@@ -429,7 +452,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, hostECUAddr = '1111', serverECUAddr = '2
 	print '\nFlashing ' + ihexFP + ' to component ID : ' + componentID + '\n'
 
 	# start a DoIP client
-	DoIPClient = DoIP_Client(address = '0', port = 0, ECUAddr = hostECUAddr)
+	DoIPClient = DoIP_Client(ECUAddr = hostECUAddr)
 	DoIPClient.SetVerbosity(verbose)
 
 	if DoIPClient._TCP_Socket:
@@ -554,7 +577,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, hostECUAddr = '1111', serverECUAddr = '2
 							blockIndex = 1
 
 							# turn off verbosity, less you be spammed!
-							if DoIPClient.isVerbose:
+							if DoIPClient._isVerbose:
 								DoIPClient.SetVerbosity(False)
 
 							print "Transfering Data -- Max block size(bytes): 0x%.4X (%d)" % (
@@ -609,7 +632,7 @@ def DoIP_Flash_Hex(componentID, ihexFP, hostECUAddr = '1111', serverECUAddr = '2
 						if not downloadErr:
 							# request check memory
 							if DoIPClient.DoIPCheckMemory(componentID) == 0:
-								if DoIPClient.RxDoIPMsg.payload[9] == '0':
+								if DoIPClient._RxDoIPMsg.payload[9] == '0':
 									print "Check memory passed. Authorizing software update\n"
 								# if pass, then authorize application . to do: application authorization
 								else:
